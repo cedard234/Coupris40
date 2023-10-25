@@ -21,5 +21,10 @@ It by large assembles the pipeline structure of RISC-V processor.
 ## Documentation
 You can find documentations of this processor in [doc](doc) folder.
 
+## Roadmap
+### Checkpoint 1
+The RISC-V opcode compatible ALU has been implemented.
+The early stage of pipeline structure has been drawn.
+
 ## License
 MIT
