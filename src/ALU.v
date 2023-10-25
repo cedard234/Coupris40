@@ -28,9 +28,9 @@ module ALU(
             `ALU_XOR:   Out = A ^ B;
             `ALU_SLT:   Out = ($signed(A) < $signed(B)) ? 1 : 0;
             `ALU_SLTU:  Out = (A < B) ? 1 : 0;
-            `ALU_SLL:   Out = A << B[4:0];
-            `ALU_SRA:   Out = $signed(A) >>> B[4:0];
-            `ALU_SRL:   Out = A >> B[4:0];
+            `ALU_SLL:   Out = A << B;
+            `ALU_SRA:   Out = $signed(A) >>> B;
+            `ALU_SRL:   Out = A >> B;
             `ALU_COPY_B: Out = B;
             `ALU_XXX:   Out = 0;
             default:    Out = 0;
