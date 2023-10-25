@@ -65,7 +65,7 @@ module ALUTestVectorTestbench();
     // testvector input file, which you can find with the command:
     // % wc -l ../sim/tests/testvectors.input
     // //////////////////////////////////////////////////////////////
-    localparam testcases = 26;
+    localparam testcases = 85;
 
     reg [106:0] testvector [0:testcases-1]; // Each testcase has 108 bits:
     // 64 for A and B, 32 for REFout, 6 for
@@ -78,7 +78,12 @@ module ALUTestVectorTestbench();
         $vcdpluson;
         $readmemb("../../tests/testvectors.input", testvector);
         for (i = 0; i < testcases; i = i + 1) begin
-            // TODO
+            #1;
+            // Assign inputs according to specification
+            {opcode, funct, add_rshift_type, A, B, REFout} <= testvector[i];
+            #1;
+            // Check the output after 1 time unit
+            checkOutput(opcode, funct, add_rshift_type);
         end
         $display("\n\nALL TESTS PASSED!");
         $vcdplusoff;

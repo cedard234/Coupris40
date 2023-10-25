@@ -16,6 +16,71 @@ module ALUdec(
   output reg [3:0]  ALUop
 );
 
-  // Implement your ALU decoder here, then delete this comment
+  always@(*) begin
+    case(opcode)
+      `OPC_LUI  : ALUop = `ALU_COPY_B;
+      `OPC_AUIPC: ALUop = `ALU_ADD;
+      `OPC_JAL  : ALUop = `ALU_ADD;
+      `OPC_JALR : ALUop = `ALU_ADD;
+      `OPC_BRANCH: ALUop = `ALU_ADD;
+      `OPC_STORE: ALUop = `ALU_ADD;
+      `OPC_LOAD : ALUop = `ALU_ADD;
+      `OPC_ARI_RTYPE: begin
+        case(funct)
+          `FNC_ADD_SUB: begin
+            if (add_rshift_type == 1) begin
+              ALUop = `ALU_SUB;
+            end
+            else begin
+              ALUop = `ALU_ADD;
+            end
+          end
+          `FNC_SLL: ALUop = `ALU_SLL;
+          `FNC_SLT: ALUop = `ALU_SLT;
+          `FNC_SLTU: ALUop = `ALU_SLTU;
+          `FNC_XOR: ALUop = `ALU_XOR;
+          `FNC_OR: ALUop = `ALU_OR;
+          `FNC_AND: ALUop = `ALU_AND;
+          `FNC_SRL_SRA: begin
+            if (add_rshift_type == 1) begin
+              ALUop = `ALU_SRA;
+            end
+            else begin
+              ALUop = `ALU_SRL;
+            end
+          end
+          default: ALUop = `ALU_XXX;
+        endcase
+      end
+      `OPC_ARI_ITYPE: begin
+        case(funct)
+          `FNC_ADD_SUB: begin
+            if (add_rshift_type == 1) begin
+              ALUop = `ALU_SUB;
+            end
+            else begin
+              ALUop = `ALU_ADD;
+            end
+          end
+          `FNC_SLL: ALUop = `ALU_SLL;
+          `FNC_SLT: ALUop = `ALU_SLT;
+          `FNC_SLTU: ALUop = `ALU_SLTU;
+          `FNC_XOR: ALUop = `ALU_XOR;
+          `FNC_OR: ALUop = `ALU_OR;
+          `FNC_AND: ALUop = `ALU_AND;
+          `FNC_SRL_SRA: begin
+            if (add_rshift_type == 1) begin
+              ALUop = `ALU_SRA;
+            end
+            else begin
+              ALUop = `ALU_SRL;
+            end
+          end
+          default: ALUop = `ALU_XXX;
+        endcase
+      end
+      default: ALUop = `ALU_XXX;
+    endcase
+  end
 
 endmodule
