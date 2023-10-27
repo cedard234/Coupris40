@@ -1,4 +1,7 @@
 # Welcome to the README of Coupris40!
+
+**[READ THIS](/doc/workFlow.md) BEFORE YOU START WORKING ON THIS PROJECT!!!**
+
 ```
 The Coupris 40 is a vehicle in Disco Elysium.
 
@@ -21,10 +24,17 @@ It by large assembles the pipeline structure of RISC-V processor.
 ## Documentation
 You can find documentations of this processor in [doc](doc) folder.
 
+
 ## Roadmap
 ### Checkpoint 1
-The RISC-V opcode compatible ALU has been implemented.
-The early stage of pipeline structure has been drawn.
+- [] The RISC-V opcode compatible ALU has been implemented.
+
+- [x] The testvector generator script written in python has been implemented.
+
+- [] The early stage of pipeline structure has been drawn.
+
+### Checkpoint 2
+TODO
 
 ## License
 MIT
