@@ -84,7 +84,7 @@ functs_rtype = \
     "SLTU":    ("011", "0", lambda a,b: 1 if (a<b) else 0, lambda a: a, lambda b: b),
     "XOR":     ("100", "0", lambda a,b: a^b, lambda a: a, lambda b: b),
     "SRL":     ("101", "0", lambda a,b: a>>b, lambda a: a, lambda b: b),
-    # "SRA":     ("101", "1", lambda a,b: sra(a,b), lambda a: a, lambda b: b),
+    "SRA":     ("101", "1", lambda a,b: sra(a,b), lambda a: a, lambda b: b&0x1f),
     "OR":      ("110", "0", lambda a,b: a|b, lambda a: a, lambda b: b),
     "AND":     ("111", "0", lambda a,b: a&b, lambda a: a, lambda b: b),
 }
