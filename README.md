@@ -27,11 +27,13 @@ You can find documentations of this processor in [doc](doc) folder.
 
 ## Roadmap
 ### Checkpoint 1
-- [] The RISC-V opcode compatible ALU has been implemented.
+
+- [ ] The RISC-V opcode compatible ALU has been implemented.
 
 - [x] The testvector generator script written in python has been implemented.
 
-- [] The early stage of pipeline structure has been drawn.
+- [ ] The early stage of pipeline structure has been drawn.
+
 
 ### Checkpoint 2
 TODO
