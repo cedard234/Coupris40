@@ -13,7 +13,7 @@ It is fitted with a KR18GU engine, and notable for its skinny tyres in compariso
 
 ## What is Coupris40?
 Coupris 40 is the model of Coupris Kineema -- Kim Kitsuragi's car in Disco Elysium. 
-This project aims to build a 3-stage RISC-V processor with SKY-130 PDK. We named it as "Coupris40" because we want a stable yet powerful processor, just like Kim's car.
+This project aims to build a 3-stage RISC-V processor with SKY-130 PDK. We named it as "Coupris40" because we want an unstable and self-destructive processor, just like Harry Dy Bois.
 
 ## Pipeline Structure of the Processor
 ![Pipeline Structure](doc/pipelineDiagram/pipelineDiagram.png)
