@@ -15,12 +15,6 @@ module s0_PC_MUX(
     output [`CPU_DATA_BITS-1: 0] s0_pc_next
 )
 
-    always@(*) begin // A simple multiplexer
-        if (PCSel == 1'b0) begin
-            s0_pc_next = s0_pc_add_4;
-        end
-        else begin
-            s0_pc_next = s0_pc_alu;
-        end
-    end
+    assign s0_pc_next = (PCSel == 1'b1) ? s0_pc_alu : s0_pc_add_4;
+
 endmodule

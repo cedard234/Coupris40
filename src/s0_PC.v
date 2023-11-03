@@ -26,11 +26,11 @@ module s0_PC(
         end
     end
 
-    // Property: when reset is asserted, the PC is 0x00002000
-    Property PC_reset;
-        @(posedge clk)
-        (reset) |-> (s0_pc == `PC_RESET);
-    endproperty
-    PC_is_set_to_PC_RESET_when_reset_is_asserted: assert property (PC_reset);
-
 endmodule
+
+// Property: when reset is asserted, the PC is 0x00002000
+Property PC_reset;
+    @(posedge clk)
+    (reset) |-> (s0_pc == `PC_RESET);
+endproperty
+PC_is_set_to_PC_RESET_when_reset_is_asserted: assert property (PC_reset);
