@@ -27,7 +27,7 @@ module control(
     output reg PCSel,
     output reg ImmSel,
     output reg RegWEN,
-    output reg [`CPU_DATA_BITS-1: 0] AddrD,
+    output reg [4: 0] AddrD,
     output reg ASel,
     output reg BSel,
     output reg [3: 0] ALUSel,
@@ -37,8 +37,7 @@ module control(
 
     reg [`CPU_INST_BITS-1: 0] s0s1_inst, s1s2_inst;
 
-    // The instruction needs to be pipelined;
-
+    // The instruction needs to be pipelined:
     always@(posedge clk) begin
         if (reset) begin
             s0s1_inst <= 0;
