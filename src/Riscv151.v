@@ -163,14 +163,22 @@ module Riscv151(
   wire MemRW; //TODO: how does MemRW related to the dcache_we?
   // Figured out: It should be the RW mask.
   wire [1:0] WBSel;
-  wire [`CPU_DATA_BITS-1: 0] s2_wb;
+  wire [3:0] LdU;
+  wire [`CPU_DATA_BITS-1: 0] s2_dataR_ld;
 
   // s2_dataD was already well defined as:
   //  wire [`CPU_DATA_BITS-1: 0] s2_dataD;
+
+  s2_LD_MUX s2_ld_mux(
+    .s2_dataR(dcache_dout),
+    .LdU(LdU),
+    .s2_dataR_ld(s2_dataR_ld)
+  );
+
   s2_WB_MUX s2_wb_mux(
     .s2_pc(s2_pc),
     .s2_ALU(s2_alu),
-    .s2_dataR(dcache_dout),
+    .s2_dataR(s2_dataR_ld),
     .WBSel(WBSel),
     .s2_wb(s2_dataD)
   );
@@ -191,6 +199,8 @@ module Riscv151(
     .BSel(BSel),
     .ALUSel(ALUSel),
     .MemRW(MemRW),
+    .WMask(dcache_we),
+    .LdU(LdU),
     .WBSel(WBSel)
   );
 

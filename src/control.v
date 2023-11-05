@@ -12,6 +12,8 @@
 //          BSel: the signal to select between dataB from the register file and the immediate value
 //          ALUSel: the signal to select the ALU's operation
 //          MemRW: the signal to select between a read or write to memory
+//          WMask: the signal to select the write mask for the data memory
+//          LdU: the signal to determine the format of the data from the data memory
 //          WBSel: the signal to select from pc, ALU or memory for the writeback
 //
 
@@ -26,28 +28,30 @@ module control(
     input BrEq,
     input BrLT,
     output reg PCSel,
-    output reg [6: 0] ImmSel,
+    output reg [6:0] ImmSel,
     output reg RegWEN,
-    output reg [4: 0] AddrD,
+    output reg [4:0] AddrD,
     output reg BrUn,
     output reg ASel,
     output reg BSel,
-    output reg [3: 0] ALUSel,
+    output reg [3:0] ALUSel,
     output reg MemRW,
+    output reg [3:0] WMask,
+    output reg [3:0] LdU,
     output reg [1:0] WBSel
 );
 
-    reg [`CPU_INST_BITS-1: 0] s0s1_inst, s1s2_inst;
+    reg [`CPU_INST_BITS-1: 0] s1_inst, s2_inst;
 
     // The instruction needs to be pipelined:
     always@(posedge clk) begin
         if (reset) begin
-            s0s1_inst <= 0;
-            s1s2_inst <= 0;
+            s1_inst <= 0;
+            s2_inst <= 0;
         end
         else begin
-            s0s1_inst <= s0_inst;
-            s1s2_inst <= s0s1_inst;
+            s1_inst <= s0_inst;
+            s2_inst <= s1_inst;
         end
     end
 
@@ -56,12 +60,12 @@ module control(
         // PCSel
         // PC is NOT PC+4 if and only if the instruction is a JAL, JALR or a BRANCH.
         // If the instruction is a branch, it depends on the branch condition.
-        if (s0s1_inst[6:0] == `OPC_JAL ||
-            s0s1_inst[6:0] == `OPC_JALR) begin
+        if (s1_inst[6:0] == `OPC_JAL ||
+            s1_inst[6:0] == `OPC_JALR) begin
             PCSel = 1'b1;
         end
-        else if (s0s1_inst[6:0] == `OPC_BRANCH) begin
-            case(s0s1_inst[14:12])
+        else if (s1_inst[6:0] == `OPC_BRANCH) begin
+            case(s1_inst[14:12])
                 `FNC_BEQ: PCSel = BrEq; // Equal: A=B.
                 `FNC_BNE: PCSel = ~BrEq; // Not equal: A!=B.
                 `FNC_BLT: PCSel = BrLT; // Less than: A<B.
@@ -81,12 +85,12 @@ module control(
 
         // RegWEN
         // RegWEN is 1 if and only if the instruction is a: Rtype, Itype, JAL, JALR, or Utype.
-        if (s0s1_inst[6:0] == `OPC_ARI_RTYPE ||
-            s0s1_inst[6:0] == `OPC_ARI_ITYPE ||
-            s0s1_inst[6:0] == `OPC_JAL ||
-            s0s1_inst[6:0] == `OPC_JALR ||
-            s0s1_inst[6:0] == `OPC_LUI ||
-            s0s1_inst[6:0] == `OPC_AUIPC) begin
+        if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
+            s1_inst[6:0] == `OPC_ARI_ITYPE ||
+            s1_inst[6:0] == `OPC_JAL ||
+            s1_inst[6:0] == `OPC_JALR ||
+            s1_inst[6:0] == `OPC_LUI ||
+            s1_inst[6:0] == `OPC_AUIPC) begin
             RegWEN = 1'b1;
         end
         else begin
@@ -95,13 +99,13 @@ module control(
 
         // AddrD
         // AddrD is given to the register file only after the instruction has reached the writeback stage.
-        AddrD = s1s2_inst[11:7];
+        AddrD = s2_inst[11:7];
 
         // ASel
         // ASel is 1 if and only if the instruction is a: Branch, JAL or JALR.
-        if (s0s1_inst[6:0] == `OPC_BRANCH ||
-            s0s1_inst[6:0] == `OPC_JAL ||
-            s0s1_inst[6:0] == `OPC_JALR) begin
+        if (s1_inst[6:0] == `OPC_BRANCH ||
+            s1_inst[6:0] == `OPC_JAL ||
+            s1_inst[6:0] == `OPC_JALR) begin
             ASel = 1'b1;
         end
         else begin
@@ -110,13 +114,13 @@ module control(
 
         // BSel
         // BSel is 1 if and only if the instruction is a: Itype, Stype, Branch, JAL, JALR, LUI or AUIPC.
-        if (s0s1_inst[6:0] == `OPC_ARI_ITYPE ||
-            s0s1_inst[6:0] == `OPC_STORE ||
-            s0s1_inst[6:0] == `OPC_BRANCH ||
-            s0s1_inst[6:0] == `OPC_JAL ||
-            s0s1_inst[6:0] == `OPC_JALR ||
-            s0s1_inst[6:0] == `OPC_LUI ||
-            s0s1_inst[6:0] == `OPC_AUIPC) begin
+        if (s1_inst[6:0] == `OPC_ARI_ITYPE ||
+            s1_inst[6:0] == `OPC_STORE ||
+            s1_inst[6:0] == `OPC_BRANCH ||
+            s1_inst[6:0] == `OPC_JAL ||
+            s1_inst[6:0] == `OPC_JALR ||
+            s1_inst[6:0] == `OPC_LUI ||
+            s1_inst[6:0] == `OPC_AUIPC) begin
             BSel = 1'b1;
         end
         else begin
@@ -125,8 +129,8 @@ module control(
 
         // BrUn
         // BrUn is 1 if and only if the instruction is a: BLTU or BGEU.
-        if (s0s1_inst[6:0] == `OPC_BRANCH) begin
-            case(s0s1_inst[14:12])
+        if (s1_inst[6:0] == `OPC_BRANCH) begin
+            case(s1_inst[14:12])
                 `FNC_BLTU: BrUn = 1'b1;
                 `FNC_BGEU: BrUn = 1'b1;
                 default: BrUn = 1'b0;
@@ -138,27 +142,47 @@ module control(
 
         // MemRW
         // MemRW is 1 if and only if the instruction is a store.
-        if (s0s1_inst[6:0] == `OPC_STORE) begin
+        if (s1_inst[6:0] == `OPC_STORE) begin
             MemRW = 1'b1;
         end
         else begin
             MemRW = 1'b0;
         end
 
+        // WMask
+        // WMask is 0000 if not a store
+        // WMask is 0001 if SB
+        // WMask is 0011 if SH
+        // WMask is 1111 if SW
+        if (s1_inst[6:0] == `OPC_STORE) begin
+            case(s1_inst[14:12])
+                `FNC_SB: WMask = 4'b0001;
+                `FNC_SH: WMask = 4'b0011;
+                `FNC_SW: WMask = 4'b1111;
+                default: WMask = 4'b0000;
+            endcase
+        end
+        else begin
+            WMask = 4'b0000;
+        end
+
+        // LdU
+        LdU = s2_inst[14:12];
+
         // WBSel
         // WBSel is 0 if and only if the instruction is a load.
         // WBSel is 1 if and only if the instruction is a: Rtype or Itype.
         // WBSel is 2 if and only if the instruction is a: JAL or JALR.
         // In other scenarios, set WBSel to 1.
-        if (s0s1_inst[6:0] == `OPC_LOAD) begin
+        if (s1_inst[6:0] == `OPC_LOAD) begin
             WBSel = 2'b00;
         end
-        else if (s0s1_inst[6:0] == `OPC_ARI_RTYPE ||
-                 s0s1_inst[6:0] == `OPC_ARI_ITYPE) begin
+        else if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
+                 s1_inst[6:0] == `OPC_ARI_ITYPE) begin
             WBSel = 2'b01;
         end
-        else if (s0s1_inst[6:0] == `OPC_JAL ||
-                 s0s1_inst[6:0] == `OPC_JALR) begin
+        else if (s1_inst[6:0] == `OPC_JAL ||
+                 s1_inst[6:0] == `OPC_JALR) begin
             WBSel = 2'b10;
         end
         else begin
@@ -169,9 +193,9 @@ module control(
     // ALUSel
     // ALUSel is implemented in ALUdec.v. Here it is instantiated.
     ALUdec ALUdec_inst(
-        .opcode(s0s1_inst[6:0]),
-        .funct(s0s1_inst[14:12]),
-        .add_rshift_type(s0s1_inst[30]),
+        .opcode(s1_inst[6:0]),
+        .funct(s1_inst[14:12]),
+        .add_rshift_type(s1_inst[30]),
         .ALUop(ALUSel)
     );
 
