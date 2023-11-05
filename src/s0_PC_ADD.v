@@ -5,10 +5,10 @@
 //
 
 `include "const.vh"
-module s0_PC_ADD{
-    input [`CPU_INST_BITS-1: 0] s0_pc;
+module s0_PC_ADD(
+    input [`CPU_INST_BITS-1: 0] s0_pc,
     output [`CPU_INST_BITS-1: 0] s0_pc_add_4
-};
+);
 
     assign s0_pc_add_4 = s0_pc + 4;
 

@@ -19,7 +19,7 @@ module Riscv151(
 );
 
   // Always read the dmem and imem
-  
+
   assign dcache_re = 1'b1;
   assign icache_re = 1'b1;
 
@@ -30,6 +30,7 @@ module Riscv151(
   wire [`CPU_DATA_BITS-1: 0] s0_pc_add_4;
   wire [`CPU_DATA_BITS-1: 0] s0_pc_alu;
   wire [`CPU_DATA_BITS-1: 0] s0_pc_next;
+  wire [`CPU_DATA_BITS-1: 0] s0_pc;
 
   s0_PC_MUX s0_pc_mux(
     .s0_pc_add_4(s0_pc_add_4),
@@ -38,12 +39,10 @@ module Riscv151(
     .PCSel(PCSel)
   );
 
-  s0_PC s0_pc(
+  s0_PC s0_pc_instance(
     .clk(clk),
     .reset(reset),
     .s0_pc_next(s0_pc_next),
-    .s0_pc_alu(s0_pc_alu),
-    .s0_pc_add_4(s0_pc_add_4),
     .s0_pc(s0_pc)
   );
 
@@ -74,7 +73,7 @@ module Riscv151(
     .s0_AddrA(s0_inst[19:15]),
     .s0_AddrB(s0_inst[24:20]),
     .s2_AddrD(AddrD),
-    .s2_dataD(s2_dataD),
+    .s2_DataD(s2_dataD),
     .s1_DataA(s1_dataA),
     .s1_DataB(s1_dataB)
   );
@@ -85,7 +84,7 @@ module Riscv151(
   s0_IMM_GEN s0_imm_gen(
     .ImmSel(ImmSel),
     .s0_inst(s0_inst),
-    .s0_imm(s0_imm)
+    .s0_Imm(s0_imm)
   );
 
   // Stage 0 ends, stage 1 begins. Insert registers here.
@@ -111,7 +110,7 @@ module Riscv151(
     .s1_dataB(s1_dataB),
     .BrUn(BrUn),
     .BrEq(BrEq),
-    .BrLT(BrLT)
+    .BrLt(BrLT)
   );
 
   wire [`CPU_DATA_BITS-1: 0] s1_alu_in1;
@@ -121,21 +120,21 @@ module Riscv151(
   s1_dataA_MUX s1_dataA_mux(
     .s1_pc(s1_pc),
     .s1_dataA(s1_dataA),
-    .ASel(ASel)
-    .s1_ALU_in1(s1_ALU_in1)
+    .ASel(ASel),
+    .s1_ALU_in1(s1_alu_in1)
   );
 
   s1_dataB_MUX s1_dataB_mux(
     .s1_imm(s1_imm),
     .s1_dataB(s1_dataB),
     .BSel(BSel),
-    .s1_ALU_in2(s1_ALU_in2)
+    .s1_ALU_in2(s1_alu_in2)
   );
 
   wire [3:0] ALUSel;
   wire [`CPU_DATA_BITS-1: 0] s1_alu;
 
-  ALU s1_alu(
+  ALU s1_alu_instance(
     .A(s1_alu_in1),
     .B(s1_alu_in2),
     .ALUop(ALUSel),
@@ -162,7 +161,8 @@ module Riscv151(
 
   // Stage 2 begins
   wire MemRW; //TODO: how does MemRW related to the dcache_we?
-  wire WBSel;
+  // Figured out: It should be the RW mask.
+  wire [1:0] WBSel;
   wire [`CPU_DATA_BITS-1: 0] s2_wb;
 
   // s2_dataD was already well defined as:
@@ -170,7 +170,7 @@ module Riscv151(
   s2_WB_MUX s2_wb_mux(
     .s2_pc(s2_pc),
     .s2_ALU(s2_alu),
-    .s2_dataB(dcache_dout),
+    .s2_dataR(dcache_dout),
     .WBSel(WBSel),
     .s2_wb(s2_dataD)
   );
@@ -186,6 +186,7 @@ module Riscv151(
     .ImmSel(ImmSel),
     .RegWEN(RegWEn),
     .AddrD(AddrD),
+    .BrUn(BrUn),
     .ASel(ASel),
     .BSel(BSel),
     .ALUSel(ALUSel),

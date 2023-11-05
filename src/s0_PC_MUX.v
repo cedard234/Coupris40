@@ -13,7 +13,7 @@ module s0_PC_MUX(
     input [`CPU_INST_BITS-1: 0] s0_pc_add_4,
     input PCSel,
     output [`CPU_DATA_BITS-1: 0] s0_pc_next
-)
+);
 
     assign s0_pc_next = (PCSel == 1'b1) ? s0_pc_alu : s0_pc_add_4;
 

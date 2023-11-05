@@ -7,6 +7,7 @@
 //          ImmSel: the signal to select the immediate value, or just the OPCODE
 //          RegWEN: the signal to determine if the register file should be written to
 //          AddrD: the address to write to in the register file
+//          BrUn: the signal to determine if the branch is unsigned
 //          ASel: the signal to select between the PC and dataA from the register file
 //          BSel: the signal to select between dataB from the register file and the immediate value
 //          ALUSel: the signal to select the ALU's operation
@@ -25,14 +26,15 @@ module control(
     input BrEq,
     input BrLT,
     output reg PCSel,
-    output reg ImmSel,
+    output reg [6: 0] ImmSel,
     output reg RegWEN,
     output reg [4: 0] AddrD,
+    output reg BrUn,
     output reg ASel,
     output reg BSel,
     output reg [3: 0] ALUSel,
     output reg MemRW,
-    output reg WBSel
+    output reg [1:0] WBSel
 );
 
     reg [`CPU_INST_BITS-1: 0] s0s1_inst, s1s2_inst;
@@ -75,7 +77,7 @@ module control(
 
         // ImmSel
         // ImmSel is just the opcode.
-        ImmSel = s0inst[6:0];
+        ImmSel = s0_inst[6:0];
 
         // RegWEN
         // RegWEN is 1 if and only if the instruction is a: Rtype, Itype, JAL, JALR, or Utype.
@@ -134,15 +136,6 @@ module control(
             BrUn = 1'b0;
         end
 
-        // ALUSel
-        // ALUSel is implemented in ALUdec.v. Here it is instantiated.
-        ALUdec ALUdec_inst(
-            .opcode(s0s1_inst[6:0]),
-            .funct(s0s1_inst[14:12]),
-            .add_rshift_type(s0s1_inst[30]),
-            .ALUop(ALUSel)
-        );
-
         // MemRW
         // MemRW is 1 if and only if the instruction is a store.
         if (s0s1_inst[6:0] == `OPC_STORE) begin
@@ -172,5 +165,14 @@ module control(
             WBSel = 2'b01;
         end
     end
+
+    // ALUSel
+    // ALUSel is implemented in ALUdec.v. Here it is instantiated.
+    ALUdec ALUdec_inst(
+        .opcode(s0s1_inst[6:0]),
+        .funct(s0s1_inst[14:12]),
+        .add_rshift_type(s0s1_inst[30]),
+        .ALUop(ALUSel)
+    );
 
 endmodule

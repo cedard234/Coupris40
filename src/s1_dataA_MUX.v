@@ -8,7 +8,7 @@
 
 `include "const.vh"
 
-module(
+module s1_dataA_MUX(
     input [`CPU_INST_BITS-1: 0] s1_pc,
     input [`CPU_DATA_BITS-1: 0] s1_dataA,
     input ASel,

@@ -21,9 +21,9 @@ module s0_REG(
     input [`MEM_TAG_BITS-1: 0] s0_AddrB,
     input [`MEM_TAG_BITS-1: 0] s2_AddrD,
     input [`CPU_DATA_BITS-1: 0] s2_DataD,
-    output [`CPU_DATA_BITS-1: 0] s1_DataA,
-    output [`CPU_DATA_BITS-1: 0] s1_DataB
-)
+    output reg [`CPU_DATA_BITS-1: 0] s1_DataA,
+    output reg [`CPU_DATA_BITS-1: 0] s1_DataB
+);
 
     reg [`CPU_DATA_BITS-1: 0] registers [`CPU_INST_BITS: 1];
 

@@ -15,7 +15,7 @@ module s2_WB_MUX(
     input [`CPU_DATA_BITS-1: 0] s2_dataR,
     input [1:0] WBSel,
     output [`CPU_DATA_BITS-1: 0] s2_wb
-)
+);
 
     assign  
     s2_wb = (WBSel == 2'b00) ? s2_pc 
