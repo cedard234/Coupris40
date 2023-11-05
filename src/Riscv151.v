@@ -18,6 +18,11 @@ module Riscv151(
 
 );
 
+  // Always read the dmem and imem
+  
+  assign dcache_re = 1'b1;
+  assign icache_re = 1'b1;
+
   // From left to right on the pipeline plot, the modules are:
 
   // Stage 0, before PC and IMEM
@@ -56,7 +61,7 @@ module Riscv151(
   // Two stage 2 signals are defined here, because they are used in stage 0
   wire [4:0] AddrD;
   wire RegWEn;
-  wire [`CPU_DATA_BITS-1: 0] s2_DataD;
+  wire [`CPU_DATA_BITS-1: 0] s2_dataD;
 
   // two stage 1 signals are defined here as the output
   wire [`CPU_DATA_BITS-1: 0] s1_dataA;
@@ -69,7 +74,7 @@ module Riscv151(
     .s0_AddrA(s0_inst[19:15]),
     .s0_AddrB(s0_inst[24:20]),
     .s2_AddrD(AddrD),
-    .s2_DataD(s2_DataD),
+    .s2_dataD(s2_dataD),
     .s1_DataA(s1_dataA),
     .s1_DataB(s1_dataB)
   );
@@ -160,14 +165,14 @@ module Riscv151(
   wire WBSel;
   wire [`CPU_DATA_BITS-1: 0] s2_wb;
 
-  // s2_DataD was already well defined as:
-  //  wire [`CPU_DATA_BITS-1: 0] s2_DataD;
+  // s2_dataD was already well defined as:
+  //  wire [`CPU_DATA_BITS-1: 0] s2_dataD;
   s2_WB_MUX s2_wb_mux(
     .s2_pc(s2_pc),
     .s2_ALU(s2_alu),
     .s2_dataB(dcache_dout),
     .WBSel(WBSel),
-    .s2_wb(s2_DataD)
+    .s2_wb(s2_dataD)
   );
 
   // Finally, the control logic
