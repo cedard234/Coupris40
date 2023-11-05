@@ -26,6 +26,7 @@ module s0_IMM_GEN(
             `OPC_LOAD:      s0_Imm = {{21{s0_inst[31]}}, s0_inst[30:20]};     //  I type
             `OPC_ARI_RTYPE: s0_Imm = `CPU_DATA_BITS'(0);    //  R type
             `OPC_ARI_ITYPE: s0_Imm = {{21{s0_inst[31]}}, s0_inst[30:20]};    //  I type
+            `OPC_CSR:       s0_Imm = {{28{s0_inst[19]}}, s0_inst[18:15]};    //  CSR operation
             default:        s0_Imm = `CPU_DATA_BITS'(0);    
         endcase
     end

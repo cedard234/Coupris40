@@ -28,13 +28,14 @@ module Riscv151(
   // Stage 0, before PC and IMEM
   wire PCSel;
   wire [`CPU_DATA_BITS-1: 0] s0_pc_add_4;
-  wire [`CPU_DATA_BITS-1: 0] s0_pc_alu;
+  // The stage 1 signal s1_alu is defined here, because it is used in stage 0
+  wire [`CPU_DATA_BITS-1: 0] s1_alu;
   wire [`CPU_DATA_BITS-1: 0] s0_pc_next;
   wire [`CPU_DATA_BITS-1: 0] s0_pc;
 
   s0_PC_MUX s0_pc_mux(
     .s0_pc_add_4(s0_pc_add_4),
-    .s0_pc_alu(s0_pc_alu),
+    .s0_pc_alu(s1_alu),
     .s0_pc_next(s0_pc_next),
     .PCSel(PCSel)
   );
@@ -132,7 +133,8 @@ module Riscv151(
   );
 
   wire [3:0] ALUSel;
-  wire [`CPU_DATA_BITS-1: 0] s1_alu;
+  // s1_alu was already defined as :
+  // wire [`CPU_DATA_BITS-1: 0] s1_alu;
 
   ALU s1_alu_instance(
     .A(s1_alu_in1),
@@ -160,8 +162,8 @@ module Riscv151(
   end
 
   // Stage 2 begins
-  wire MemRW; //TODO: how does MemRW related to the dcache_we?
-  // Figured out: It should be the RW mask.
+  wire MemRW; 
+  // The RW mask.
   wire [1:0] WBSel;
   wire [3:0] LdU;
   wire [`CPU_DATA_BITS-1: 0] s2_dataR_ld;
@@ -201,7 +203,9 @@ module Riscv151(
     .MemRW(MemRW),
     .WMask(dcache_we),
     .LdU(LdU),
-    .WBSel(WBSel)
+    .WBSel(WBSel),
+    .s2_ALU(s2_alu),
+    .csr(csr)
   );
 
 endmodule

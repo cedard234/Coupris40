@@ -54,14 +54,15 @@ module ALUdec(
       end
       `OPC_ARI_ITYPE: begin
         case(funct)
-          `FNC_ADD_SUB: begin
-            if (add_rshift_type == 1) begin
-              ALUop = `ALU_SUB;
-            end
-            else begin
-              ALUop = `ALU_ADD;
-            end
-          end
+          // `FNC_ADD_SUB: begin
+          //   if (add_rshift_type == 1) begin
+          //     ALUop = `ALU_SUB;
+          //   end
+          //   else begin
+          //     ALUop = `ALU_ADD;
+          //   end
+          // end
+          `FNC_ADD_SUB: ALUop = `ALU_ADD;
           `FNC_SLL: ALUop = `ALU_SLL;
           `FNC_SLT: ALUop = `ALU_SLT;
           `FNC_SLTU: ALUop = `ALU_SLTU;
@@ -76,6 +77,13 @@ module ALUdec(
               ALUop = `ALU_SRL;
             end
           end
+          default: ALUop = `ALU_XXX;
+        endcase
+      end
+      `OPC_CSR: begin
+        case(funct)
+          `FNC_RW: ALUop = `ALU_COPY_A;
+          `FNC_RWI: ALUop = `ALU_COPY_B;
           default: ALUop = `ALU_XXX;
         endcase
       end

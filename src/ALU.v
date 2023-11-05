@@ -31,6 +31,7 @@ module ALU(
             `ALU_SLL:   Out = A << B;
             `ALU_SRA:   Out = $signed(A) >>> B;
             `ALU_SRL:   Out = A >> B;
+            `ALU_COPY_A: Out = A;
             `ALU_COPY_B: Out = B;
             `ALU_XXX:   Out = 0;
             default:    Out = 0;

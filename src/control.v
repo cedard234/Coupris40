@@ -3,6 +3,7 @@
 // Inputs: s0_inst: the instruction from the first stage
 //         BrEq: the signal to determine if the branch is equal
 //         BrLT: the signal to determine if the branch is less than
+//         s1_alu: the output of the ALU from the first stage. This is included for the CSR instruction.
 // Outputs: PCSel: the signal to select the next PC
 //          ImmSel: the signal to select the immediate value, or just the OPCODE
 //          RegWEN: the signal to determine if the register file should be written to
@@ -15,6 +16,7 @@
 //          WMask: the signal to select the write mask for the data memory
 //          LdU: the signal to determine the format of the data from the data memory
 //          WBSel: the signal to select from pc, ALU or memory for the writeback
+//          CSR: The value of the CSR register
 //
 
 `include "const.vh"
@@ -27,6 +29,7 @@ module control(
     input [`CPU_INST_BITS-1: 0] s0_inst,
     input BrEq,
     input BrLT,
+    input [`CPU_DATA_BITS-1: 0] s2_ALU,
     output reg PCSel,
     output reg [6:0] ImmSel,
     output reg RegWEN,
@@ -38,7 +41,8 @@ module control(
     output reg MemRW,
     output reg [3:0] WMask,
     output reg [3:0] LdU,
-    output reg [1:0] WBSel
+    output reg [1:0] WBSel,
+    output reg [`CPU_DATA_BITS-1: 0] csr
 );
 
     reg [`CPU_INST_BITS-1: 0] s1_inst, s2_inst;
@@ -85,12 +89,12 @@ module control(
 
         // RegWEN
         // RegWEN is 1 if and only if the instruction is a: Rtype, Itype, JAL, JALR, or Utype.
-        if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
-            s1_inst[6:0] == `OPC_ARI_ITYPE ||
-            s1_inst[6:0] == `OPC_JAL ||
-            s1_inst[6:0] == `OPC_JALR ||
-            s1_inst[6:0] == `OPC_LUI ||
-            s1_inst[6:0] == `OPC_AUIPC) begin
+        if (s2_inst[6:0] == `OPC_ARI_RTYPE ||
+            s2_inst[6:0] == `OPC_ARI_ITYPE ||
+            s2_inst[6:0] == `OPC_JAL ||
+            s2_inst[6:0] == `OPC_JALR ||
+            s2_inst[6:0] == `OPC_LUI ||
+            s2_inst[6:0] == `OPC_AUIPC) begin
             RegWEN = 1'b1;
         end
         else begin
@@ -195,8 +199,20 @@ module control(
     ALUdec ALUdec_inst(
         .opcode(s1_inst[6:0]),
         .funct(s1_inst[14:12]),
-        .add_rshift_type(s1_inst[30]),
+        .add_rshift_type(~s1_inst[30]),
         .ALUop(ALUSel)
     );
+
+    // CSR
+    always@(posedge clk) begin
+        if (reset) begin
+        csr <= 0;
+        end
+        else begin
+        if (s1_inst[6:0] == `OPC_CSR) begin
+            csr <= s2_ALU;
+        end
+        end
+    end
 
 endmodule
