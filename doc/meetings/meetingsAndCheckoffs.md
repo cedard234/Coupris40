@@ -1,3 +1,13 @@
+# Meeting 5 Nov 2023
+## Todos
+No Forwarding Datapath:
+| Components | mux(2/3) | shifter(4) | PC(reset) | reg(reset) | imm. gen | branch. comps | ld | ALU | Control(Reset) | Pipeline Reg |
+| ---------- | -------- | ---------- | --------- | ---------- | -------- | ------------- | -- | --- | -------------- | ------------ |
+| rtl        | Done     | Done       | Done      | Done       | Done     | Done          | Done | Done | Done           | Done         |
+| testbench  | N        | N          | N         | N          | N        | N             | N    | N    | N              | Done         |
+| assertion  | N/A      | N/A        | Done      | N          | N/A      | N/A           | N/A  | N/A  | N              | N/A          |
+| past tb    |          |            |           |            |          |               |      |      |                |              |
+
 # Check off with Ken 27 Oct 2023
 - [x] Redraw the pipeline diagram
     -   [x] PC should be in line with IMEM, since IMEM is synchronous.
