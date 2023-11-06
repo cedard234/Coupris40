@@ -105,10 +105,12 @@ module Riscv151(
 
   // Stage 1 begins
   wire BrUn, BrEq, BrLT;
+  wire [`CPU_DATA_BITS-1: 0] s1_dataA_latest;
+  wire [`CPU_DATA_BITS-1: 0] s1_dataB_latest;
 
   s1_BRANCH_COMP s1_branch_comp(
-    .s1_dataA(s1_dataA),
-    .s1_dataB(s1_dataB),
+    .s1_dataA(s1_dataA_latest),
+    .s1_dataB(s1_dataB_latest),
     .BrUn(BrUn),
     .BrEq(BrEq),
     .BrLt(BrLT)
@@ -120,14 +122,14 @@ module Riscv151(
 
   s1_dataA_MUX s1_dataA_mux(
     .s1_pc(s1_pc),
-    .s1_dataA(s1_dataA),
+    .s1_dataA(s1_dataA_latest),
     .ASel(ASel),
     .s1_ALU_in1(s1_alu_in1)
   );
 
   s1_dataB_MUX s1_dataB_mux(
     .s1_imm(s1_imm),
-    .s1_dataB(s1_dataB),
+    .s1_dataB(s1_dataB_latest),
     .BSel(BSel),
     .s1_ALU_in2(s1_alu_in2)
   );
@@ -205,7 +207,12 @@ module Riscv151(
     .LdU(LdU),
     .WBSel(WBSel),
     .s2_ALU(s2_alu),
-    .csr(csr)
+    .csr(csr),
+    .s1_dataA(s1_dataA),
+    .s1_dataB(s1_dataB),
+    .s2_dataD(s2_dataD),
+    .s1_dataA_latest(s1_dataA_latest),
+    .s1_dataB_latest(s1_dataB_latest)
   );
 
 endmodule

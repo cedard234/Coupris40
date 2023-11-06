@@ -3,7 +3,10 @@
 // Inputs: s0_inst: the instruction from the first stage
 //         BrEq: the signal to determine if the branch is equal
 //         BrLT: the signal to determine if the branch is less than
-//         s1_alu: the output of the ALU from the first stage. This is included for the CSR instruction.
+//         s2_alu: the output of the ALU from the first stage. This is included for the CSR insruction.
+//         s1_dataA: the dataA from the register file
+//         s1_dataB: the dataB from the register file
+//         s2_dataD: the data to be written to the register file
 // Outputs: PCSel: the signal to select the next PC
 //          ImmSel: the signal to select the immediate value, or just the OPCODE
 //          RegWEN: the signal to determine if the register file should be written to
@@ -17,6 +20,8 @@
 //          LdU: the signal to determine the format of the data from the data memory
 //          WBSel: the signal to select from pc, ALU or memory for the writeback
 //          CSR: The value of the CSR register
+//          s1_dataA_latest: the dataA after done forwarding
+//          s1_dataB_latest: the dataB after done forwarding
 //
 
 `include "const.vh"
@@ -29,6 +34,9 @@ module control(
     input [`CPU_INST_BITS-1: 0] s0_inst,
     input BrEq,
     input BrLT,
+    input [`CPU_DATA_BITS-1: 0] s1_dataA,
+    input [`CPU_DATA_BITS-1: 0] s1_dataB,
+    input [`CPU_DATA_BITS-1: 0] s2_dataD,
     input [`CPU_DATA_BITS-1: 0] s2_ALU,
     output reg PCSel,
     output reg [6:0] ImmSel,
@@ -42,7 +50,9 @@ module control(
     output reg [3:0] WMask,
     output reg [3:0] LdU,
     output reg [1:0] WBSel,
-    output reg [`CPU_DATA_BITS-1: 0] csr
+    output reg [`CPU_DATA_BITS-1: 0] csr,
+    output reg [`CPU_DATA_BITS-1: 0] s1_dataA_latest,
+    output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest
 );
 
     reg [`CPU_INST_BITS-1: 0] s1_inst, s2_inst;
@@ -192,6 +202,65 @@ module control(
         else begin
             WBSel = 2'b01;
         end
+
+        // Data Forwarding
+        // When either dataA or dataB address coincides with the address of the register to be written to, the data after writeback stage is forwarded to the ALU.
+        // Only do dataA forwarding when the instruction at s1 is R, I, S or B.
+        // Forward two stages; the latter stage has higher priority.
+        if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
+            s1_inst[6:0] == `OPC_ARI_ITYPE ||
+            s1_inst[6:0] == `OPC_STORE ||
+            s1_inst[6:0] == `OPC_BRANCH) begin
+            if (s1_inst[11:7] == AddrD) begin
+                s1_dataA_latest = s2_dataD;
+            end
+            else begin
+                s1_dataA_latest = s1_dataA;
+            end
+        end
+        else if (s0_inst[6:0] == `OPC_ARI_RTYPE ||
+                 s0_inst[6:0] == `OPC_ARI_ITYPE ||
+                 s0_inst[6:0] == `OPC_STORE ||
+                 s0_inst[6:0] == `OPC_BRANCH) begin
+            if (s0_inst[11:7] == AddrD) begin
+                s1_dataA_latest = s2_dataD;
+            end
+            else begin
+                s1_dataA_latest = s1_dataA;
+            end
+        end
+        else begin
+            s1_dataA_latest = s1_dataA;
+        end
+
+        // Only do dataB forwarding when the instruction at s1 is R, S or B.
+        // Forward two stages; the latter stage has higher priority.
+        if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
+            s1_inst[6:0] == `OPC_STORE ||
+            s1_inst[6:0] == `OPC_BRANCH) begin
+            if (s1_inst[24:20] == AddrD) begin
+                s1_dataB_latest = s2_dataD;
+            end
+            else if (s0_inst[24:20] == AddrD) begin
+                s1_dataB_latest = s2_dataD;
+            end else begin
+                s1_dataB_latest = s1_dataB;
+            end
+        end
+        else if (s0_inst[6:0] == `OPC_ARI_RTYPE ||
+                 s0_inst[6:0] == `OPC_STORE ||
+                 s0_inst[6:0] == `OPC_BRANCH) begin
+            if (s0_inst[24:20] == AddrD) begin
+                s1_dataB_latest = s2_dataD;
+            end
+            else begin
+                s1_dataB_latest = s1_dataB;
+            end
+        end
+        else begin
+            s1_dataB_latest = s1_dataB;
+        end
+
     end
 
     // ALUSel
@@ -214,5 +283,6 @@ module control(
         end
         end
     end
+
 
 endmodule
