@@ -67,12 +67,14 @@ module Riscv151(
   wire [`CPU_DATA_BITS-1: 0] s1_dataA;
   wire [`CPU_DATA_BITS-1: 0] s1_dataB;
 
+  wire [`CPU_INST_BITS-1: 0] s1_inst;
+
   s0_REG s0_reg(
     .clk(clk),
     .reset(reset),
     .RegWEn(RegWEn),
-    .s0_AddrA(s0_inst[19:15]),
-    .s0_AddrB(s0_inst[24:20]),
+    .s0_AddrA(s1_inst[19:15]),
+    .s0_AddrB(s1_inst[24:20]),
     .s2_AddrD(AddrD),
     .s2_DataD(s2_dataD),
     .s1_DataA(s1_dataA),
@@ -212,7 +214,8 @@ module Riscv151(
     .s1_dataB(s1_dataB),
     .s2_dataD(s2_dataD),
     .s1_dataA_latest(s1_dataA_latest),
-    .s1_dataB_latest(s1_dataB_latest)
+    .s1_dataB_latest(s1_dataB_latest),
+    .s1_inst_output(s1_inst)
   );
 
 endmodule

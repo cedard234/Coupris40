@@ -22,7 +22,7 @@
 //          CSR: The value of the CSR register
 //          s1_dataA_latest: the dataA after done forwarding
 //          s1_dataB_latest: the dataB after done forwarding
-//
+//          s1_inst_output: the instruction at s1 stage 
 
 `include "const.vh"
 `include "Opcode.vh"
@@ -52,11 +52,13 @@ module control(
     output reg [1:0] WBSel,
     output reg [`CPU_DATA_BITS-1: 0] csr,
     output reg [`CPU_DATA_BITS-1: 0] s1_dataA_latest,
-    output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest
+    output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest,
+    output reg [`CPU_DATA_BITS-1: 0] s1_inst_output
 );
 
     reg [`CPU_INST_BITS-1: 0] s1_inst, s2_inst;
 
+    reg [`CPU_INST_BITS-1: 0] s1_inst_next;
     // The instruction needs to be pipelined:
     always@(posedge clk) begin
         if (reset) begin
@@ -64,8 +66,32 @@ module control(
             s2_inst <= 0;
         end
         else begin
-            s1_inst <= s0_inst;
             s2_inst <= s1_inst;
+            s1_inst <= s1_inst_next;
+        end
+    end
+
+    always@(*) begin
+        // s1_inst_next: flush the pipeline if the branch is taken, or if the instruction is a JAL or JALR.
+        if (s1_inst[6:0] == `OPC_BRANCH) begin
+            case(s1_inst[14:12])
+                `FNC_BEQ: s1_inst_next = (BrEq) ? `INSTR_NOP : s0_inst;
+                `FNC_BNE: s1_inst_next = (~BrEq) ? `INSTR_NOP : s0_inst;
+                `FNC_BLT: s1_inst_next = (BrLT) ? `INSTR_NOP : s0_inst;
+                `FNC_BGE: s1_inst_next = (~BrLT) ? `INSTR_NOP : s0_inst;
+                `FNC_BLTU: s1_inst_next = (BrLT) ? `INSTR_NOP : s0_inst;
+                `FNC_BGEU: s1_inst_next = (~BrLT) ? `INSTR_NOP : s0_inst;
+                default: s1_inst_next = s0_inst;
+            endcase
+        end
+        else if (s1_inst[6:0] == `OPC_JAL) begin
+            s1_inst_next = `INSTR_NOP;
+        end
+        else if (s1_inst[6:0] == `OPC_JALR) begin
+            s1_inst_next = `INSTR_NOP;
+        end
+        else begin
+            s1_inst_next = s0_inst;
         end
     end
 
@@ -205,24 +231,16 @@ module control(
 
         // Data Forwarding
         // When either dataA or dataB address coincides with the address of the register to be written to, the data after writeback stage is forwarded to the ALU.
-        // Only do dataA forwarding when the instruction at s1 is R, I, S or B.
-        // Forward two stages; the latter stage has higher priority.
-        if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
+        // Only do dataA forwarding when the instruction at s1 is R, I, S or B, and the instruction at s2 is I, R, auipc or lui.
+        if ((s1_inst[6:0] == `OPC_ARI_RTYPE ||
             s1_inst[6:0] == `OPC_ARI_ITYPE ||
             s1_inst[6:0] == `OPC_STORE ||
-            s1_inst[6:0] == `OPC_BRANCH) begin
-            if (s1_inst[11:7] == AddrD) begin
-                s1_dataA_latest = s2_dataD;
-            end
-            else begin
-                s1_dataA_latest = s1_dataA;
-            end
-        end
-        else if (s0_inst[6:0] == `OPC_ARI_RTYPE ||
-                 s0_inst[6:0] == `OPC_ARI_ITYPE ||
-                 s0_inst[6:0] == `OPC_STORE ||
-                 s0_inst[6:0] == `OPC_BRANCH) begin
-            if (s0_inst[11:7] == AddrD) begin
+            s1_inst[6:0] == `OPC_BRANCH) && 
+            (s2_inst[6:0] == `OPC_ARI_RTYPE ||
+            s2_inst[6:0] == `OPC_ARI_ITYPE ||
+            s2_inst[6:0] == `OPC_AUIPC ||
+            s2_inst[6:0] == `OPC_LUI)) begin
+            if ((s1_inst[19:15] == AddrD) && AddrD != 0) begin
                 s1_dataA_latest = s2_dataD;
             end
             else begin
@@ -234,23 +252,15 @@ module control(
         end
 
         // Only do dataB forwarding when the instruction at s1 is R, S or B.
-        // Forward two stages; the latter stage has higher priority.
-        if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
+        if ((s1_inst[6:0] == `OPC_ARI_RTYPE ||
+            s1_inst[6:0] == `OPC_ARI_ITYPE ||
             s1_inst[6:0] == `OPC_STORE ||
-            s1_inst[6:0] == `OPC_BRANCH) begin
-            if (s1_inst[24:20] == AddrD) begin
-                s1_dataB_latest = s2_dataD;
-            end
-            else if (s0_inst[24:20] == AddrD) begin
-                s1_dataB_latest = s2_dataD;
-            end else begin
-                s1_dataB_latest = s1_dataB;
-            end
-        end
-        else if (s0_inst[6:0] == `OPC_ARI_RTYPE ||
-                 s0_inst[6:0] == `OPC_STORE ||
-                 s0_inst[6:0] == `OPC_BRANCH) begin
-            if (s0_inst[24:20] == AddrD) begin
+            s1_inst[6:0] == `OPC_BRANCH) && 
+            (s2_inst[6:0] == `OPC_ARI_RTYPE ||
+            s2_inst[6:0] == `OPC_ARI_ITYPE ||
+            s2_inst[6:0] == `OPC_AUIPC ||
+            s2_inst[6:0] == `OPC_LUI)) begin
+            if ((s1_inst[24:20] == AddrD) && AddrD != 0) begin
                 s1_dataB_latest = s2_dataD;
             end
             else begin
@@ -260,7 +270,6 @@ module control(
         else begin
             s1_dataB_latest = s1_dataB;
         end
-
     end
 
     // ALUSel
@@ -268,7 +277,7 @@ module control(
     ALUdec ALUdec_inst(
         .opcode(s1_inst[6:0]),
         .funct(s1_inst[14:12]),
-        .add_rshift_type(~s1_inst[30]),
+        .add_rshift_type(s1_inst[30]),
         .ALUop(ALUSel)
     );
 
@@ -283,6 +292,8 @@ module control(
         end
         end
     end
+
+assign s1_inst_output = s1_inst;
 
 
 endmodule
