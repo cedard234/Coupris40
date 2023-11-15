@@ -20,12 +20,24 @@ module s0_IMM_GEN(
             `OPC_LUI:       s0_Imm = {s0_inst[31:12], 12'b0};   //  U type
             `OPC_AUIPC:     s0_Imm = {s0_inst[31:12], 12'b0};   //  U type
             `OPC_JAL:       s0_Imm = {{12{s0_inst[31]}}, s0_inst[19:12], s0_inst[20], s0_inst[30:21], 1'b0}; //   J type
-            `OPC_JALR:      s0_Imm = {{20{s0_inst[31]}}, s0_inst[30:20], 1'b0};    //  I type
+            `OPC_JALR:      s0_Imm = {{21{s0_inst[31]}}, s0_inst[30:20]};    //  I type
             `OPC_BRANCH:    s0_Imm = {{20{s0_inst[31]}}, s0_inst[7], s0_inst[30:25], s0_inst[11:8], 1'b0};    //  B type
             `OPC_STORE:     s0_Imm = {{21{s0_inst[31]}}, s0_inst[30:25], s0_inst[11:7]};  //  S type
             `OPC_LOAD:      s0_Imm = {{21{s0_inst[31]}}, s0_inst[30:20]};     //  I type
             `OPC_ARI_RTYPE: s0_Imm = `CPU_DATA_BITS'(0);    //  R type
-            `OPC_ARI_ITYPE: s0_Imm = {{21{s0_inst[31]}}, s0_inst[30:20]};    //  I type
+            `OPC_ARI_ITYPE: begin
+                s0_Imm = {{21{s0_inst[31]}}, s0_inst[30:20]};    //  I type
+                if (s0_inst[14:12] == `FNC_SLL) begin //  I* type
+                    s0_Imm = {{28{s0_inst[24]}}, s0_inst[24:20]};    
+                end else if (s0_inst[14:12] == `FNC_SRL_SRA) begin
+                    if (s0_inst[30] == `FNC2_SRA) begin
+                        s0_Imm = {28'b0, s0_inst[24:20]};    
+                    end
+                    else if (s0_inst[30] == `FNC2_SRL) begin
+                        s0_Imm = {28'b0, s0_inst[24:20]};    
+                    end
+                end
+            end
             `OPC_CSR:       s0_Imm = {{28{s0_inst[19]}}, s0_inst[18:15]};    //  CSR operation
             default:        s0_Imm = `CPU_DATA_BITS'(0);    
         endcase

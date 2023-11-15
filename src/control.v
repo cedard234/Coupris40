@@ -38,6 +38,7 @@ module control(
     input [`CPU_DATA_BITS-1: 0] s1_dataB,
     input [`CPU_DATA_BITS-1: 0] s2_dataD,
     input [`CPU_DATA_BITS-1: 0] s2_ALU,
+    input [`CPU_DATA_BITS-1: 0] s1_ALU,
     output reg PCSel,
     output reg [6:0] ImmSel,
     output reg RegWEN,
@@ -53,7 +54,9 @@ module control(
     output reg [`CPU_DATA_BITS-1: 0] csr,
     output reg [`CPU_DATA_BITS-1: 0] s1_dataA_latest,
     output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest,
-    output reg [`CPU_DATA_BITS-1: 0] s1_inst_output
+    output reg [`CPU_DATA_BITS-1: 0] s1_inst_output,
+    output [1: 0] dmemory_address,
+    output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest_shifted
 );
 
     reg [`CPU_INST_BITS-1: 0] s1_inst, s2_inst;
@@ -130,7 +133,8 @@ module control(
             s2_inst[6:0] == `OPC_JAL ||
             s2_inst[6:0] == `OPC_JALR ||
             s2_inst[6:0] == `OPC_LUI ||
-            s2_inst[6:0] == `OPC_AUIPC) begin
+            s2_inst[6:0] == `OPC_AUIPC ||
+            s2_inst[6:0] == `OPC_LOAD) begin
             RegWEN = 1'b1;
         end
         else begin
@@ -145,7 +149,7 @@ module control(
         // ASel is 1 if and only if the instruction is a: Branch, JAL or JALR.
         if (s1_inst[6:0] == `OPC_BRANCH ||
             s1_inst[6:0] == `OPC_JAL ||
-            s1_inst[6:0] == `OPC_JALR) begin
+            s1_inst[6:0] == `OPC_AUIPC) begin
             ASel = 1'b1;
         end
         else begin
@@ -160,7 +164,8 @@ module control(
             s1_inst[6:0] == `OPC_JAL ||
             s1_inst[6:0] == `OPC_JALR ||
             s1_inst[6:0] == `OPC_LUI ||
-            s1_inst[6:0] == `OPC_AUIPC) begin
+            s1_inst[6:0] == `OPC_AUIPC ||
+            s1_inst[6:0] == `OPC_LOAD) begin
             BSel = 1'b1;
         end
         else begin
@@ -191,14 +196,38 @@ module control(
 
         // WMask
         // WMask is 0000 if not a store
-        // WMask is 0001 if SB
+        // WMask is 0001, 0010, 0100, 1000 if SB
         // WMask is 0011 if SH
         // WMask is 1111 if SW
         if (s1_inst[6:0] == `OPC_STORE) begin
             case(s1_inst[14:12])
-                `FNC_SB: WMask = 4'b0001;
-                `FNC_SH: WMask = 4'b0011;
-                `FNC_SW: WMask = 4'b1111;
+                `FNC_SB: begin
+                    case (s1_ALU[1:0])
+                        2'b00: begin WMask = 4'b0001; s1_dataB_latest_shifted = s1_dataB_latest; end
+                        2'b01: begin WMask = 4'b0010; s1_dataB_latest_shifted = s1_dataB_latest << 8; end
+                        2'b10: begin WMask = 4'b0100; s1_dataB_latest_shifted = s1_dataB_latest << 16; end
+                        2'b11: begin WMask = 4'b1000; s1_dataB_latest_shifted = s1_dataB_latest << 24; end
+                        default: WMask = 4'b0000;
+                    endcase
+                end
+                `FNC_SH: begin
+                    case (s1_ALU[1:0])
+                        2'b00: begin WMask = 4'b0011; s1_dataB_latest_shifted = s1_dataB_latest; end
+                        2'b01: begin WMask = 4'b0110; s1_dataB_latest_shifted = s1_dataB_latest << 8; end
+                        2'b10: begin WMask = 4'b1100; s1_dataB_latest_shifted = s1_dataB_latest << 16; end
+                        2'b11: begin WMask = 4'b1000; s1_dataB_latest_shifted = s1_dataB_latest << 24; end
+                        default: WMask = 4'b0000;
+                    endcase
+                end
+                `FNC_SW: begin
+                    case (s1_ALU[1:0])
+                        2'b00: begin WMask = 4'b1111; s1_dataB_latest_shifted = s1_dataB_latest; end
+                        2'b01: begin WMask = 4'b1110; s1_dataB_latest_shifted = s1_dataB_latest << 8; end
+                        2'b10: begin WMask = 4'b1100; s1_dataB_latest_shifted = s1_dataB_latest << 16; end
+                        2'b11: begin WMask = 4'b1000; s1_dataB_latest_shifted = s1_dataB_latest << 24; end
+                        default: WMask = 4'b0000;
+                    endcase
+                end
                 default: WMask = 4'b0000;
             endcase
         end
@@ -214,15 +243,15 @@ module control(
         // WBSel is 1 if and only if the instruction is a: Rtype or Itype.
         // WBSel is 2 if and only if the instruction is a: JAL or JALR.
         // In other scenarios, set WBSel to 1.
-        if (s1_inst[6:0] == `OPC_LOAD) begin
+        if (s2_inst[6:0] == `OPC_LOAD) begin
             WBSel = 2'b00;
         end
-        else if (s1_inst[6:0] == `OPC_ARI_RTYPE ||
-                 s1_inst[6:0] == `OPC_ARI_ITYPE) begin
+        else if (s2_inst[6:0] == `OPC_ARI_RTYPE ||
+                 s2_inst[6:0] == `OPC_ARI_ITYPE) begin
             WBSel = 2'b01;
         end
-        else if (s1_inst[6:0] == `OPC_JAL ||
-                 s1_inst[6:0] == `OPC_JALR) begin
+        else if (s2_inst[6:0] == `OPC_JAL ||
+                 s2_inst[6:0] == `OPC_JALR) begin
             WBSel = 2'b10;
         end
         else begin
@@ -235,11 +264,15 @@ module control(
         if ((s1_inst[6:0] == `OPC_ARI_RTYPE ||
             s1_inst[6:0] == `OPC_ARI_ITYPE ||
             s1_inst[6:0] == `OPC_STORE ||
-            s1_inst[6:0] == `OPC_BRANCH) && 
+            s1_inst[6:0] == `OPC_BRANCH ||
+            s1_inst[6:0] == `OPC_LOAD ||
+            s1_inst[6:0] == `OPC_AUIPC ||
+            s1_inst[6:0] == `OPC_JALR) && 
             (s2_inst[6:0] == `OPC_ARI_RTYPE ||
             s2_inst[6:0] == `OPC_ARI_ITYPE ||
             s2_inst[6:0] == `OPC_AUIPC ||
-            s2_inst[6:0] == `OPC_LUI)) begin
+            s2_inst[6:0] == `OPC_LUI ||
+            s2_inst[6:0] == `OPC_LOAD)) begin
             if ((s1_inst[19:15] == AddrD) && AddrD != 0) begin
                 s1_dataA_latest = s2_dataD;
             end
@@ -255,11 +288,15 @@ module control(
         if ((s1_inst[6:0] == `OPC_ARI_RTYPE ||
             s1_inst[6:0] == `OPC_ARI_ITYPE ||
             s1_inst[6:0] == `OPC_STORE ||
-            s1_inst[6:0] == `OPC_BRANCH) && 
+            s1_inst[6:0] == `OPC_BRANCH ||
+            s1_inst[6:0] == `OPC_LOAD ||
+            s1_inst[6:0] == `OPC_AUIPC ||
+            s1_inst[6:0] == `OPC_JALR) && 
             (s2_inst[6:0] == `OPC_ARI_RTYPE ||
             s2_inst[6:0] == `OPC_ARI_ITYPE ||
             s2_inst[6:0] == `OPC_AUIPC ||
-            s2_inst[6:0] == `OPC_LUI)) begin
+            s2_inst[6:0] == `OPC_LUI||
+            s2_inst[6:0] == `OPC_LOAD)) begin
             if ((s1_inst[24:20] == AddrD) && AddrD != 0) begin
                 s1_dataB_latest = s2_dataD;
             end
@@ -294,6 +331,9 @@ module control(
     end
 
 assign s1_inst_output = s1_inst;
+
+// We need memory address to do memory address alignment process.
+assign dmemory_address = s2_ALU[1:0];
 
 
 endmodule

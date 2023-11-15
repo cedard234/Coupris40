@@ -18,9 +18,9 @@ module s2_WB_MUX(
 );
 
     assign  
-    s2_wb = (WBSel == 2'b00) ? s2_pc 
+    s2_wb = (WBSel == 2'b00) ? s2_dataR 
     : (WBSel == 2'b01) ? s2_ALU 
-    : (WBSel == 2'b10) ? s2_dataR 
+    : (WBSel == 2'b10) ? s2_pc+4
     : `CPU_DATA_BITS'b0;
 
 endmodule

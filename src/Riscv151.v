@@ -147,8 +147,9 @@ module Riscv151(
     .Out(s1_alu)
   );
 
+  wire [`CPU_DATA_BITS-1: 0] s1_dataB_latest_shifted;
   assign dcache_addr = s1_alu;
-  assign dcache_din = s1_dataB;
+  assign dcache_din = s1_dataB_latest_shifted;
 
   // Stage 1 ends, stage 2 begins. Insert registers here.
   reg [`CPU_DATA_BITS-1: 0] s2_alu;
@@ -175,10 +176,13 @@ module Riscv151(
   // s2_dataD was already well defined as:
   //  wire [`CPU_DATA_BITS-1: 0] s2_dataD;
 
+  wire [1: 0] dmemory_address;
+
   s2_LD_MUX s2_ld_mux(
     .s2_dataR(dcache_dout),
     .LdU(LdU),
-    .s2_dataR_ld(s2_dataR_ld)
+    .s2_dataR_ld(s2_dataR_ld),
+    .dmemory_address(dmemory_address)
   );
 
   s2_WB_MUX s2_wb_mux(
@@ -215,7 +219,10 @@ module Riscv151(
     .s2_dataD(s2_dataD),
     .s1_dataA_latest(s1_dataA_latest),
     .s1_dataB_latest(s1_dataB_latest),
-    .s1_inst_output(s1_inst)
+    .s1_inst_output(s1_inst),
+    .dmemory_address(dmemory_address),
+    .s1_ALU(s1_alu),
+    .s1_dataB_latest_shifted(s1_dataB_latest_shifted)
   );
 
 endmodule
