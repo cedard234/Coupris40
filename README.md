@@ -36,13 +36,13 @@ You can find documentations of this processor in [doc](doc) folder.
 ### Checkpoint 2
 - [x] The main skeleton of the pipeline processor has been implemented.
 
-- [ ] Control and Status Register (CSR)
+- [x] Control and Status Register (CSR)
 
-- [ ] Testbench files, have they passed the test?
+- [x] Testbench files, have they passed the test?
 
 - [ ] Updated pipeline structure -- redraw the plot
 
-- [ ] Assertions in the verilog modules
+- [x] Assertions in the verilog modules
 
 ### Checkpoint 3
 - [ ] TODO
