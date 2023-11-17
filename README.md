@@ -34,6 +34,8 @@ You can find documentations of this processor in [doc](doc) folder.
 - [x] The early stage of pipeline structure has been drawn.
 
 ### Checkpoint 2
+- [x] The main skeleton of the pipeline processor has been implemented.
+
 - [ ] Control and Status Register (CSR)
 
 - [ ] Testbench files, have they passed the test?
