@@ -225,4 +225,7 @@ module Riscv151(
     .s1_dataB_latest_shifted(s1_dataB_latest_shifted)
   );
 
+
+  `include "riscv_assertion.svh"
+
 endmodule
