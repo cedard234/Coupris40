@@ -14,12 +14,16 @@ module s0_PC(
     input clk,
     input reset,
     input [`CPU_DATA_BITS-1: 0] s0_pc_next,
-    output reg [`CPU_DATA_BITS-1: 0] s0_pc
+    output reg [`CPU_DATA_BITS-1: 0] s0_pc,
+    input stall
 );
 
     always@(posedge clk) begin
         if (reset) begin
             s0_pc <= `PC_RESET; // Reset to 0x00002000
+        end
+        else if (stall) begin
+            s0_pc <= s0_pc;
         end
         else begin
             s0_pc <= s0_pc_next;

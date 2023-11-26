@@ -56,7 +56,8 @@ module control(
     output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest,
     output reg [`CPU_DATA_BITS-1: 0] s1_inst_output,
     output [1: 0] dmemory_address,
-    output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest_shifted
+    output reg [`CPU_DATA_BITS-1: 0] s1_dataB_latest_shifted,
+    input stall
 );
 
     reg [`CPU_INST_BITS-1: 0] s1_inst, s2_inst;
@@ -67,6 +68,10 @@ module control(
         if (reset) begin
             s1_inst <= 0;
             s2_inst <= 0;
+        end
+        else if (stall) begin
+            s2_inst <= s2_inst;
+            s1_inst <= s1_inst;
         end
         else begin
             s2_inst <= s1_inst;
