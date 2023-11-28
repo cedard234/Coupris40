@@ -34,6 +34,30 @@ module cache #
   input [`MEM_DATA_BITS-1:0]  mem_resp_data
 );
 
-  // Implement your cache here, then delete this comment
+  direct_mapped_cache dmc_inst(
+    .clk(clk),
+    .reset(reset),
+
+    .cpu_req_valid(cpu_req_valid),
+    .cpu_req_ready(cpu_req_ready),
+    .cpu_req_addr(cpu_req_addr),
+    .cpu_req_data(cpu_req_data),
+    .cpu_req_write(cpu_req_write),
+
+    .cpu_resp_valid(cpu_resp_valid),
+    .cpu_resp_data(cpu_resp_data),
+
+    .mem_req_valid(mem_req_valid),
+    .mem_req_ready(mem_req_ready),
+    .mem_req_addr(mem_req_addr),
+    .mem_req_rw(mem_req_rw),
+    .mem_req_data_valid(mem_req_data_valid),
+    .mem_req_data_ready(mem_req_data_ready),
+    .mem_req_data_bits(mem_req_data_bits),
+    .mem_req_data_mask(mem_req_data_mask),
+
+    .mem_resp_valid(mem_resp_valid),
+    .mem_resp_data(mem_resp_data)
+  );
 
 endmodule

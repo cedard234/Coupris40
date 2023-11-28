@@ -18,11 +18,6 @@ module Riscv151(
 
 );
 
-  // Always read the dmem and imem
-
-  assign dcache_re = 1'b1;
-  assign icache_re = 1'b1;
-
   // From left to right on the pipeline plot, the modules are:
 
   // Stage 0, before PC and IMEM
@@ -44,7 +39,8 @@ module Riscv151(
     .clk(clk),
     .reset(reset),
     .s0_pc_next(s0_pc_next),
-    .s0_pc(s0_pc)
+    .s0_pc(s0_pc),
+    .stall(stall)
   );
 
   assign icache_addr = s0_pc_next;
@@ -98,6 +94,9 @@ module Riscv151(
     if (reset) begin
       s1_imm <= 0;
       s1_pc <= 0;
+    end
+    else if (stall) begin
+      // Do nothing
     end
     else begin
       s1_imm <= s0_imm;
@@ -159,6 +158,9 @@ module Riscv151(
     if (reset) begin
       s2_alu <= 0;
       s2_pc <= 0;
+    end
+    else if (stall) begin
+      // Do nothing
     end
     else begin
       s2_alu <= s1_alu;
@@ -222,8 +224,14 @@ module Riscv151(
     .s1_inst_output(s1_inst),
     .dmemory_address(dmemory_address),
     .s1_ALU(s1_alu),
-    .s1_dataB_latest_shifted(s1_dataB_latest_shifted)
+    .s1_dataB_latest_shifted(s1_dataB_latest_shifted),
+    .stall(stall)
   );
+  
+  // Always read the instruction cache
+  assign icache_re = (reset)? 1'b0: ~dcache_re;
+  // Read the data cache if we need to; i.e. the instruction is a load
+  assign dcache_re = (reset)? 1'b0: (s1_inst[6:0] == `OPC_LOAD);
 
 
   `include "riscv_assertion.svh"
