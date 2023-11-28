@@ -227,11 +227,11 @@ module Riscv151(
     .s1_dataB_latest_shifted(s1_dataB_latest_shifted),
     .stall(stall)
   );
-
+  
   // Always read the instruction cache
-  assign icache_re = 1'b1;
+  assign icache_re = (reset)? 1'b0: ~dcache_re;
   // Read the data cache if we need to; i.e. the instruction is a load
-  assign dcache_re = s1_inst[6:0] == `OPC_LOAD;
+  assign dcache_re = (reset)? 1'b0: (s1_inst[6:0] == `OPC_LOAD);
 
 
   `include "riscv_assertion.svh"

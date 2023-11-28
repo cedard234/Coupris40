@@ -18,7 +18,7 @@ module direct_mapped_cache #
   input [3:0]                 cpu_req_write,
 
   output                      cpu_resp_valid,
-  output [CPU_WIDTH-1:0]      cpu_resp_data,
+  output reg [CPU_WIDTH-1:0]      cpu_resp_data,
 
   output                      mem_req_valid,
   input                       mem_req_ready,
@@ -26,7 +26,7 @@ module direct_mapped_cache #
   output                           mem_req_rw,
   output                           mem_req_data_valid,
   input                            mem_req_data_ready,
-  output [`MEM_DATA_BITS-1:0]      mem_req_data_bits,
+  output reg [`MEM_DATA_BITS-1:0]      mem_req_data_bits,
   // byte level masking
   output [(`MEM_DATA_BITS/8)-1:0]  mem_req_data_mask,
 
@@ -36,30 +36,31 @@ module direct_mapped_cache #
 
     localparam IDLE = 0, READ = 1, READ_MEM = 2, WRITE = 3;
     reg [1:0] state, next_state;
-    wire [5:0] offset, offset_old;
+    wire [3:0] offset, offset_old;
     wire [5:0] index, index_old;
     wire [19:0] tag, tag_old;
-    wire [3:0] cache_write_enable;
-    wire [20:0] valid_bits_and_tag;
+    reg [3:0] cache_write_enable;
+    wire [31:0] valid_bits_and_tag;
     reg [31:0] cpu_address_archive;
     assign {tag, index, offset} = cpu_req_addr;
     assign {tag_old, index_old, offset_old} = cpu_address_archive; 
     wire READ_hit;
-    reg [0:1] READ_MEM_transaction_count;
-    wire [7:0] sram_addr;
+    reg [2:0] READ_MEM_transaction_count;
+    reg [7:0] sram_addr;
     wire [31:0] valid_bits_and_tag_new;
+    reg [15:0] write_mask_for_datasram;
     wire WRITE_Done;
+    wire [127:0] all_read_data_from_datasram;
     // posedge triggered events
     always@(posedge clk) begin
         if (reset) begin
-            state <= idle;
+            state <= IDLE;
         end else begin
             if (state == IDLE) begin
                 cpu_address_archive <= cpu_req_addr;
+                READ_MEM_transaction_count <= 0;
             end else if (state == READ_MEM) begin
-                if (mem_req_ready) begin
-                    READ_MEM_transaction_count <= READ_MEM_transaction_count + 1'b1;
-                end
+                READ_MEM_transaction_count <= READ_MEM_transaction_count + 1'b1;
             end
             state <= next_state;
         end
@@ -75,15 +76,15 @@ module direct_mapped_cache #
                     end else begin
                         next_state = WRITE;
                     end
-                    end else begin
-                        next_state = IDLE;
-                    end
+                end else begin
+                    next_state = IDLE;
+                end
             end
             READ: begin
                 next_state = READ_hit? IDLE: READ_MEM;
             end
             READ_MEM: begin
-                next_state = READ_MEM_transaction_count == 2'b11? READ: READ_MEM;
+                next_state = (READ_MEM_transaction_count == 5)? READ: READ_MEM;
             end
             WRITE: begin
                 next_state = WRITE_Done? IDLE: WRITE;
@@ -94,37 +95,52 @@ module direct_mapped_cache #
     //What to do in each state
     always@(*) begin
         if (state == IDLE) begin
-            sram_addr = {index, offset[5:4]};
+            sram_addr = {index, offset[3:2]};
+        end else
+        if (next_state == READ) begin
+            sram_addr = {index_old, offset_old[3:2]};
         end else if (state == READ_MEM) begin
-            sram_addr = {index_old, offset_old[5:4]+READ_MEM_transaction_count};
+            sram_addr = {index_old, offset_old[3:2]} + READ_MEM_transaction_count-1;
         end else begin
-            sram_addr = {index_old, offset_old[5:4]};
+            sram_addr = {index, offset[3:2]};
         end
 
         cache_write_enable = 4'b0000;
         write_mask_for_datasram = 4'b0000;
-        if (state == READ_MEM) begin
-            write_mask_for_datasram = 4'b1111;
+        if (state == READ_MEM && READ_MEM_transaction_count >=1 && READ_MEM_transaction_count <=4) begin
+            write_mask_for_datasram = 16'hFFFF;
             cache_write_enable = 4'b1111;
-        else if (state == WRITE) begin
-            cache_write_enable[offset_old[3:2]] = 1'b1;
+        end else if (next_state == WRITE) begin
+            cache_write_enable[offset_old[1:0]] = 1'b1;
             write_mask_for_datasram = cpu_req_write; // TODO: this need to be delayed as well
         end
-        end
-    end
+        end 
     assign READ_hit = (valid_bits_and_tag[19:0] == tag_old) && (valid_bits_and_tag[20]) && (state == READ);
     assign cpu_req_ready = (state == IDLE) ? 1'b1 : 1'b0;
     assign cpu_resp_valid = (state == READ && READ_hit == 1'b1) ? 1'b1 : 1'b0;
-    assign cpu_resp_data = all_read_data_from_datasram[offset[3:0]*8 +: 32];
+    always@(negedge clk) begin
+        if (state == READ && READ_hit == 1'b1) begin
+            cpu_resp_data <= all_read_data_from_datasram[offset_old[1:0]*32 +: 32];
+        end
+    end
+    // assign cpu_resp_data = all_read_data_from_datasram[offset_old[1:0]*32 +: 32];
     assign mem_req_valid = (state == READ_MEM || state == WRITE) ? 1'b1 : 1'b0;
-    assign mem_req_addr = cpu_address_archive>>4 + READ_MEM_transaction_count; // Every 4 words
-    assign valid_bits_and_tag_new = {11'b0,1'b1,valid_bits_and_tag[19:0]};
-    assign WRITE_Done = (state == WRITE) && (mem_req_ready == 1'b1)
+    assign mem_req_addr[29:2] = (cpu_address_archive>>2) + READ_MEM_transaction_count; // Every 4 words
+    assign valid_bits_and_tag_new = {11'b0,1'b1,tag_old};
+    assign WRITE_Done = (state == WRITE) && (mem_req_ready == 1'b1);
     assign mem_req_rw = (state == WRITE) ? 1'b1 : 1'b0;
     assign mem_req_data_valid = (state == WRITE) ? 1'b1 : 1'b0;
-    assign mem_req_data_bits[offset_old[3:2]*32 +: 32] = cpu_req_data;
-    wire [15:0] write_mask_for_datasram;
-    wire [127:0] all_read_data_from_datasram;
+    always @(*) begin
+        mem_req_data_bits = 128'b0;
+        case (offset_old[3:2])
+            2'b00: mem_req_data_bits[31:0] = cpu_req_data;
+            2'b01: mem_req_data_bits[63:32] = cpu_req_data;
+            2'b10: mem_req_data_bits[95:64] = cpu_req_data;
+            2'b11: mem_req_data_bits[127:96] = cpu_req_data;
+        endcase
+    end
+    
+    
 
     sram22_256x32m4w8 sram0(
     .clk(clk),
@@ -164,9 +180,9 @@ module direct_mapped_cache #
 
     sram22_64x32m4w32 metadata(
     .clk(clk),
-    .we(cache_write_enable),
+    .we((|cache_write_enable) && (READ_MEM_transaction_count == 2'b01)),
     .wmask(1'b1),
-    .addr(sram_addr),
+    .addr(sram_addr[7:2]),
     .din(valid_bits_and_tag_new),
     .dout(valid_bits_and_tag)
     );
