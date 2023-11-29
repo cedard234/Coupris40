@@ -15,14 +15,16 @@ module s0_PC(
     input reset,
     input [`CPU_DATA_BITS-1: 0] s0_pc_next,
     output reg [`CPU_DATA_BITS-1: 0] s0_pc,
-    input stall
+    input stall,
+    input icache_re,
+    input [`CPU_INST_BITS-1:0] s1_inst
 );
 
     always@(posedge clk) begin
         if (reset) begin
             s0_pc <= `PC_RESET; // Reset to 0x00002000
         end
-        else if (stall) begin
+        else if (stall || ~icache_re) begin
             s0_pc <= s0_pc;
         end
         else begin

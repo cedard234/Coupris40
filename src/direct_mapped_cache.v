@@ -34,14 +34,15 @@ module direct_mapped_cache #
   input [`MEM_DATA_BITS-1:0]  mem_resp_data
 );
 
-    localparam IDLE = 0, READ = 1, READ_MEM = 2, WRITE = 3;
-    reg [1:0] state, next_state;
+    localparam IDLE = 0, READ = 1, READ_MEM = 2, WRITE = 3, WRITE_DATA = 4, WRITE_FINISH = 5;
+    reg [2:0] state, next_state;
     wire [3:0] offset, offset_old;
     wire [5:0] index, index_old;
     wire [19:0] tag, tag_old;
     reg [3:0] cache_write_enable;
     wire [31:0] valid_bits_and_tag;
     reg [31:0] cpu_address_archive;
+    reg [3:0] cpu_req_write_archive;
     assign {tag, index, offset} = cpu_req_addr;
     assign {tag_old, index_old, offset_old} = cpu_address_archive; 
     wire READ_hit;
@@ -51,6 +52,7 @@ module direct_mapped_cache #
     reg [15:0] write_mask_for_datasram;
     wire WRITE_Done;
     wire [127:0] all_read_data_from_datasram;
+    reg WRITE_A_WORD;
     // posedge triggered events
     always@(posedge clk) begin
         if (reset) begin
@@ -58,6 +60,7 @@ module direct_mapped_cache #
         end else begin
             if (state == IDLE) begin
                 cpu_address_archive <= cpu_req_addr;
+                cpu_req_write_archive <= cpu_req_write;
                 READ_MEM_transaction_count <= 0;
             end else if (state == READ_MEM) begin
                 READ_MEM_transaction_count <= READ_MEM_transaction_count + 1'b1;
@@ -81,13 +84,20 @@ module direct_mapped_cache #
                 end
             end
             READ: begin
-                next_state = READ_hit? IDLE: READ_MEM;
+                next_state = READ_hit? IDLE : READ_MEM;
             end
             READ_MEM: begin
                 next_state = (READ_MEM_transaction_count == 5)? READ: READ_MEM;
             end
             WRITE: begin
-                next_state = WRITE_Done? IDLE: WRITE;
+                // next_state = WRITE_Done? IDLE: WRITE;
+                next_state = mem_req_ready? WRITE_DATA: WRITE;
+            end
+            WRITE_DATA: begin
+                next_state = mem_req_data_ready ? WRITE_FINISH: WRITE_DATA;
+            end
+            WRITE_FINISH: begin
+                next_state = IDLE;
             end
         endcase
     end
@@ -107,18 +117,22 @@ module direct_mapped_cache #
 
         cache_write_enable = 4'b0000;
         write_mask_for_datasram = 4'b0000;
+        WRITE_A_WORD = 1'b0;
         if (state == READ_MEM && READ_MEM_transaction_count >=1 && READ_MEM_transaction_count <=4) begin
             write_mask_for_datasram = 16'hFFFF;
             cache_write_enable = 4'b1111;
         end else if (next_state == WRITE) begin
-            cache_write_enable[offset_old[1:0]] = 1'b1;
-            write_mask_for_datasram = cpu_req_write; // TODO: this need to be delayed as well
-        end
+            if (cpu_req_write == 4'b1111) begin
+                cache_write_enable[offset_old[1:0]] = 1'b1;
+                write_mask_for_datasram = cpu_req_write_archive; // TODO: this need to be delayed as well
+                WRITE_A_WORD = 1'b1;
+            end
+            end
         end 
-    assign READ_hit = (valid_bits_and_tag[19:0] == tag_old) && (valid_bits_and_tag[20]) && (state == READ);
-    assign cpu_req_ready = (state == IDLE) ? 1'b1 : 1'b0;
+    assign READ_hit = (valid_bits_and_tag[19:0] == tag_old) && (valid_bits_and_tag[20]) && (state == READ) ;
+    assign cpu_req_ready = (state == IDLE || state == WRITE_FINISH) ? 1'b1 : 1'b0;
     assign cpu_resp_valid = (state == READ && READ_hit == 1'b1) ? 1'b1 : 1'b0;
-    always@(negedge clk) begin
+    always@(posedge clk) begin
         if (state == READ && READ_hit == 1'b1) begin
             cpu_resp_data <= all_read_data_from_datasram[offset_old[1:0]*32 +: 32];
         end
@@ -128,8 +142,8 @@ module direct_mapped_cache #
     assign mem_req_addr[29:2] = (cpu_address_archive>>2) + READ_MEM_transaction_count; // Every 4 words
     assign valid_bits_and_tag_new = {11'b0,1'b1,tag_old};
     assign WRITE_Done = (state == WRITE) && (mem_req_ready == 1'b1);
-    assign mem_req_rw = (state == WRITE) ? 1'b1 : 1'b0;
-    assign mem_req_data_valid = (state == WRITE) ? 1'b1 : 1'b0;
+    assign mem_req_rw = (state == WRITE || state == WRITE_DATA || state == WRITE_FINISH) ? 1'b1 : 1'b0;
+    assign mem_req_data_valid = (state == WRITE_DATA) ? 1'b1 : 1'b0;
     always @(*) begin
         mem_req_data_bits = 128'b0;
         case (offset_old[3:2])
@@ -139,6 +153,7 @@ module direct_mapped_cache #
             2'b11: mem_req_data_bits[127:96] = cpu_req_data;
         endcase
     end
+    assign mem_req_data_mask = (state == WRITE_DATA) ? cpu_req_write << (cpu_address_archive[1:0]*4) : 4'b0000;
     
     
 
@@ -147,7 +162,7 @@ module direct_mapped_cache #
     .we(cache_write_enable[0]),
     .wmask(write_mask_for_datasram[3:0]),
     .addr(sram_addr),
-    .din(mem_resp_data[31:0]),
+    .din((state == READ_MEM) ? mem_resp_data[31:0] : cpu_req_data),
     .dout(all_read_data_from_datasram[31:0])
     );
 
@@ -156,7 +171,7 @@ module direct_mapped_cache #
     .we(cache_write_enable[1]),
     .wmask(write_mask_for_datasram[7:4]),
     .addr(sram_addr),
-    .din(mem_resp_data[63:32]),
+    .din((state == READ_MEM) ? mem_resp_data[63:32] : cpu_req_data),
     .dout(all_read_data_from_datasram[63:32])
     );
 
@@ -165,7 +180,7 @@ module direct_mapped_cache #
     .we(cache_write_enable[2]),
     .wmask(write_mask_for_datasram[11:8]),
     .addr(sram_addr),
-    .din(mem_resp_data[95:64]),
+    .din((state == READ_MEM) ? mem_resp_data[95:64] : cpu_req_data),
     .dout(all_read_data_from_datasram[95:64])
     );
 
@@ -174,13 +189,13 @@ module direct_mapped_cache #
     .we(cache_write_enable[3]),
     .wmask(write_mask_for_datasram[15:12]),
     .addr(sram_addr),
-    .din(mem_resp_data[127:96]),
+    .din((state == READ_MEM) ? mem_resp_data[127:96] : cpu_req_data),
     .dout(all_read_data_from_datasram[127:96])
     );
 
     sram22_64x32m4w32 metadata(
     .clk(clk),
-    .we((|cache_write_enable) && (READ_MEM_transaction_count == 2'b01)),
+    .we(((|cache_write_enable) && (READ_MEM_transaction_count == 2'b01)) || ((state == WRITE) && WRITE_A_WORD)),
     .wmask(1'b1),
     .addr(sram_addr[7:2]),
     .din(valid_bits_and_tag_new),

@@ -9,7 +9,7 @@ module Riscv151(
     output [31:0] icache_addr,
     output [3:0] dcache_we,
     output dcache_re,
-    output icache_re,
+    output reg icache_re,
     output [31:0] dcache_din,
     input [31:0] dcache_dout,
     input [31:0] icache_dout,
@@ -18,6 +18,7 @@ module Riscv151(
 
 );
 
+  wire [`CPU_INST_BITS-1: 0] s1_inst;
   // From left to right on the pipeline plot, the modules are:
 
   // Stage 0, before PC and IMEM
@@ -40,7 +41,9 @@ module Riscv151(
     .reset(reset),
     .s0_pc_next(s0_pc_next),
     .s0_pc(s0_pc),
-    .stall(stall)
+    .stall(stall),
+    .icache_re(icache_re),
+    .s1_inst(s1_inst)
   );
 
   assign icache_addr = s0_pc_next;
@@ -63,7 +66,7 @@ module Riscv151(
   wire [`CPU_DATA_BITS-1: 0] s1_dataA;
   wire [`CPU_DATA_BITS-1: 0] s1_dataB;
 
-  wire [`CPU_INST_BITS-1: 0] s1_inst;
+  
 
   s0_REG s0_reg(
     .clk(clk),
@@ -229,7 +232,38 @@ module Riscv151(
   );
   
   // Always read the instruction cache
-  assign icache_re = (reset)? 1'b0: ~dcache_re;
+  // assign icache_re = (reset)? 1'b0: ~dcache_re;
+  localparam read_instruction=1, wait_for_dmem = 0;
+  reg icache_next_state;
+  always@(*) begin
+    case (icache_re)
+      wait_for_dmem: icache_next_state = (~stall) ? read_instruction: wait_for_dmem;
+      read_instruction: icache_next_state = (dcache_re || (|dcache_we)) ? wait_for_dmem : read_instruction;
+    endcase
+  end
+
+  // always@(posedge clk) begin
+  //   if (reset) icache_re <= 1'b0;
+  //   else begin
+  //     icache_re <= icache_next_state;
+  //     // if (dcache_re || (|dcache_we)) begin // DCache is reading or writing
+  //     //   if (stall) begin
+  //     //     icache_re <= 1'b0;
+  //     //   end else begin
+  //     //     icache_re <= 1'b1f;
+  //     //   end
+  //     // end else begin
+  //     //   icache_re <= 1'b1; // DCache is idle
+  //     // end
+  //     // if ((dcache_re)) begin
+  //     //   icache_re <= 1'b0;
+  //     // end else begin
+  //     //   icache_re <= 1'b1;
+  //     // end
+  //     // icache_re <= ~dcache_re && ~(| dcache_we);
+  //   end
+  // end
+  assign icache_re = (reset)? 1'b0 : (~(dcache_re || (|dcache_we))) || (~stall);
   // Read the data cache if we need to; i.e. the instruction is a load
   assign dcache_re = (reset)? 1'b0: (s1_inst[6:0] == `OPC_LOAD);
 

@@ -99,7 +99,7 @@ module control(
             s1_inst_next = `INSTR_NOP;
         end
         // else if (s1_inst[6:0] == `OPC_LOAD) begin
-        //     s1_inst_next = `INSTR_NOP;
+        //     s1_inst_next = s2_inst;
         // end
         else begin
             s1_inst_next = s0_inst;
