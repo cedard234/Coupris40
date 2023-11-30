@@ -45,7 +45,8 @@ module two_way_assoc_cache #
     reg [3:0] cpu_req_write_archive;
     assign {tag, index, offset} = cpu_req_addr;
     assign {tag_old, index_old, offset_old} = cpu_address_archive; 
-    wire READ_hit;
+    wire READ_hit, WRITE_hit;
+    reg WRITE_hit_index;
     reg [2:0] READ_MEM_transaction_count;
     reg [7:0] sram_addr;
     wire [31:0] valid_bits_and_tag_new;
@@ -57,8 +58,8 @@ module two_way_assoc_cache #
     reg [1:0] way_index_to_read;
     always@(*) begin
         case ({1'b1, tag_old})
-            valid_bits_and_tag[20:0] : way_index_to_read = 2'b01;
-            valid_bits_and_tag[52:32] : way_index_to_read = 2'b10;
+            valid_bits_and_tag[20:0] :  begin way_index_to_read = 2'b01; WRITE_hit_index = 0; end
+            valid_bits_and_tag[52:32] : begin way_index_to_read = 2'b10; WRITE_hit_index = 1; end
             default : way_index_to_read = 2'b00;
         endcase
     end
@@ -68,7 +69,13 @@ module two_way_assoc_cache #
             state <= IDLE;
             way_index_to_write <= 0; // default select way 0
         end else begin
-            way_index_to_write <= (READ_MEM_transaction_count == 6 && state == 0) ? ~way_index_to_write : way_index_to_write; // Alternate the write way
+            if (state == WRITE) begin
+                if (WRITE_hit) begin
+                    way_index_to_write <= WRITE_hit_index;
+                end else begin
+                    way_index_to_write <= $random%2;
+                end
+            end
 
             if (state == IDLE) begin
                 cpu_address_archive <= cpu_req_addr;
@@ -164,6 +171,7 @@ module two_way_assoc_cache #
             // end
         end 
     assign READ_hit = ((valid_bits_and_tag[51:32]) == tag_old || (valid_bits_and_tag[19:0] == tag_old)) && (valid_bits_and_tag[20] || valid_bits_and_tag[52]) && (state == READ) ;
+    assign WRITE_hit = ((valid_bits_and_tag[51:32]) == tag_old || (valid_bits_and_tag[19:0] == tag_old)) && (valid_bits_and_tag[20] || valid_bits_and_tag[52]) && (state == WRITE) ;
     assign cpu_req_ready = (state == IDLE || state == WRITE_FINISH) ? 1'b1 : 1'b0;
     assign cpu_resp_valid = (state == READ && READ_hit == 1'b1) ? 1'b1 : 1'b0;
     always@(posedge clk) begin
