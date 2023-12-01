@@ -28,8 +28,9 @@ module Memory151(
 
   input                        mem_resp_valid,
   input [`MEM_DATA_BITS-1:0]   mem_resp_data,
-  input [`MEM_TAG_BITS-1:0]    mem_resp_tag
+  input [`MEM_TAG_BITS-1:0]    mem_resp_tag,
 
+  output                       dcache_stall_n
 );
 
 wire i_stall_n;
@@ -75,6 +76,19 @@ no_cache_mem dcache (
 assign stall =  ~i_stall_n || ~d_stall_n;
 
 `else
+
+// no_cache_mem icache (
+//   .clk(clk),
+//   .reset(reset),
+//   .cpu_req_valid(icache_re),
+//   .cpu_req_ready(i_stall_n),
+//   .cpu_req_addr(icache_addr[31:2]),
+//   .cpu_req_data(), // core does not write to icache
+//   .cpu_req_write(4'b0), // never write
+//   .cpu_resp_valid(),
+//   .cpu_resp_data(icache_dout)
+// );
+
 cache icache (
   .clk(clk),
   .reset(reset),
@@ -118,7 +132,21 @@ cache dcache (
   .mem_resp_valid(dc_mem_resp_valid),
   .mem_resp_data(mem_resp_data)
 );
+
+// no_cache_mem dcache (
+//   .clk(clk),
+//   .reset(reset),
+//   .cpu_req_valid((| dcache_we) || dcache_re),
+//   .cpu_req_ready(d_stall_n),
+//   .cpu_req_addr(dcache_addr[31:2]),
+//   .cpu_req_data(dcache_din),
+//   .cpu_req_write(dcache_we),
+//   .cpu_resp_valid(),
+//   .cpu_resp_data(dcache_dout)
+// );
+
 assign stall =  ~i_stall_n || ~d_stall_n;
+assign dcache_stall_n = d_stall_n;
 
 //                           ICache 
 //                         /        \

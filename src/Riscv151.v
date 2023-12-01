@@ -10,6 +10,7 @@ module Riscv151(
     output [3:0] dcache_we,
     output dcache_re,
     output icache_re,
+    input dcache_stall_n,
     output [31:0] dcache_din,
     input [31:0] dcache_dout,
     input [31:0] icache_dout,
@@ -227,10 +228,18 @@ module Riscv151(
     .s1_dataB_latest_shifted(s1_dataB_latest_shifted),
     .stall(stall)
   );
-  
-  // Always read the instruction cache
-  assign icache_re = (reset)? 1'b0: ~dcache_re;
-  // Read the data cache if we need to; i.e. the instruction is a load
+
+  // Yunping modification to RISC-V core
+  // Ensure that the icache will wait when we are operating on dcache
+  wire dcache_no_op;
+  assign dcache_no_op = ~dcache_re && &(~dcache_we); 
+  // When we do not read from dcache (dcache_re) and do not write to dcache (dcache_we has no 1s)
+
+  // Read icache when dcache is not being operated on
+  // There is probably a smarter way of doing this than simply stalling icache
+  assign icache_re = (reset)? 1'b0 : dcache_no_op || ~stall;
+
+  // Read dcache when we have a load command
   assign dcache_re = (reset)? 1'b0: (s1_inst[6:0] == `OPC_LOAD);
 
 
