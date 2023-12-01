@@ -34,7 +34,7 @@ module cache #
   input [`MEM_DATA_BITS-1:0]  mem_resp_data
 );
 
-  direct_mapped_cache dmc_inst(
+  two_way_associative_cache c(
     .clk(clk),
     .reset(reset),
 
