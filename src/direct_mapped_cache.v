@@ -36,6 +36,7 @@ module direct_mapped_cache #
 
     localparam IDLE = 0, READ = 1, READ_MEM = 2, WRITE = 3, WRITE_DATA = 4, WRITE_FINISH = 5, WRITE_FROM_MEM = 6;
     reg [2:0] state, next_state;
+    reg cpu_req_valid_archive;
     wire [3:0] offset, offset_old;
     wire [5:0] index, index_old;
     wire [19:0] tag, tag_old;
@@ -57,11 +58,15 @@ module direct_mapped_cache #
     always@(posedge clk) begin
         if (reset) begin
             state <= IDLE;
+            cpu_address_archive <= 32'h00000000;
+            cpu_req_write_archive <= 4'b0000;
+            READ_MEM_transaction_count <= 0;
         end else begin
             if (state == IDLE) begin
                 cpu_address_archive <= cpu_req_addr;
                 cpu_req_write_archive <= cpu_req_write;
                 READ_MEM_transaction_count <= 0;
+                
             end else if (state == READ_MEM || state == WRITE_FROM_MEM) begin
                 READ_MEM_transaction_count <= READ_MEM_transaction_count + 1'b1;
             end
@@ -98,7 +103,7 @@ module direct_mapped_cache #
                 // next_state = mem_req_data_ready ? WRITE_FINISH: WRITE_DATA;
             end
             WRITE_FROM_MEM: begin
-                next_state = (READ_MEM_transaction_count == 5)? WRITE_FINISH: WRITE_FROM_MEM;
+                next_state = (READ_MEM_transaction_count == 5 && mem_resp_valid)? WRITE_FINISH: WRITE_FROM_MEM;
             end
             WRITE_FINISH: begin
                 next_state = IDLE;
@@ -141,6 +146,7 @@ module direct_mapped_cache #
         end 
     assign READ_hit = (valid_bits_and_tag[19:0] == tag_old) && (valid_bits_and_tag[20]) && (state == READ) ;
     assign cpu_req_ready = (state == IDLE || state == WRITE_FINISH) ? 1'b1 : 1'b0;
+    // assign cpu_req_ready = (state == IDLE) ? 1'b1 : 1'b0;
     assign cpu_resp_valid = (state == READ && READ_hit == 1'b1) ? 1'b1 : 1'b0;
     always@(posedge clk) begin
         if (state == READ && READ_hit == 1'b1) begin
@@ -148,12 +154,12 @@ module direct_mapped_cache #
         end
     end
     // assign cpu_resp_data = all_read_data_from_datasram[offset_old[1:0]*32 +: 32];
-    assign mem_req_valid = (state == READ_MEM || state == WRITE || state == WRITE_FROM_MEM) ? 1'b1 : 1'b0;
+    assign mem_req_valid = (state == READ_MEM || state == WRITE || state == WRITE_FROM_MEM || state == WRITE_DATA) ? 1'b1 : 1'b0;
     assign mem_req_addr[29:2] = (cpu_address_archive>>2) + READ_MEM_transaction_count; // Every 4 words
     assign valid_bits_and_tag_new = {11'b0,1'b1,tag_old};
     assign WRITE_Done = (state == WRITE) && (mem_req_ready == 1'b1);
     assign mem_req_rw = (state == WRITE || state == WRITE_DATA || state == WRITE_FINISH) ? 1'b1 : 1'b0;
-    assign mem_req_data_valid = (state == WRITE_DATA) ? 1'b1 : 1'b0;
+    assign mem_req_data_valid = (state == WRITE_DATA || state == WRITE) ? 1'b1 : 1'b0;
     always @(*) begin
         mem_req_data_bits = 128'b0;
         case (offset_old[1:0])

@@ -263,8 +263,12 @@ module Riscv151(
   //     // icache_re <= ~dcache_re && ~(| dcache_we);
   //   end
   // end
-  assign icache_re = (reset)? 1'b0 : (~(dcache_re || (|dcache_we))) || ~(stall);
+  // assign icache_re = (reset)? 1'b0 : (~(dcache_re || (|dcache_we))) || (~(stall) && (dcache_re || (|dcache_we)));
+  // assign icache_re = (reset)? 1'b0 : ~stall;
+  assign icache_re = ~stall;
+  // assign icache_re = 1'b1;
   // Read the data cache if we need to; i.e. the instruction is a load
+  // assign dcache_re = (~MemRW) && (s1_inst[6:0] == `OPC_LOAD);
   assign dcache_re = (reset)? 1'b0: (s1_inst[6:0] == `OPC_LOAD);
 
 

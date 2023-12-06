@@ -19,16 +19,19 @@ module s0_PC(
     input icache_re,
     input [`CPU_INST_BITS-1:0] s1_inst
 );
-
+    reg [`CPU_DATA_BITS-1: 0] s0_pc_archive;
     always@(posedge clk) begin
         if (reset) begin
+            s0_pc_archive <= 0;
             s0_pc <= `PC_RESET; // Reset to 0x00002000
         end
         else if (stall || ~icache_re) begin
+        // else if (stall) begin
             s0_pc <= s0_pc;
         end
         else begin
             s0_pc <= s0_pc_next;
+            s0_pc_archive <= s0_pc;
         end
     end
 

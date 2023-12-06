@@ -6,7 +6,7 @@ module cache #
   parameter LINES = 64,
   parameter CPU_WIDTH = `CPU_INST_BITS,
   parameter WORD_ADDR_BITS = `CPU_ADDR_BITS-`ceilLog2(`CPU_INST_BITS/8),
-  parameter assoc = 1 // 1 for 2 way associative cache, 0 for direct mapped cache
+  parameter assoc = 0 // 1 for 2 way associative cache, 0 for direct mapped cache
 )
 (
   input clk,
